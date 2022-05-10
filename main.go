@@ -32,7 +32,7 @@ func CheckFile(name string) bool {
 	return true
 }
 
-func FindDeviousCmd(cmdlist []string) /*int*/ {
+func FindDeviousCmd(cmd string) string {
 	/*
 		Load a predefined list of devious commands or *interesting* commands.
 		->maybe load the lists from repuatable sources?
@@ -49,19 +49,36 @@ func FindDeviousCmd(cmdlist []string) /*int*/ {
 		Might be resource intensive.
 		Return the number of the line that contain the devious command and repeat.
 	*/
-
-	for _, cmd := range cmdlist {
-		if strings.Contains(cmd, "vi") {
-			println("Devious command:", cmd)
+	commands := []string{
+		"nc",
+		"nmap",
+		"python3",
+		"ansible-playbook",
+		"curl",
+		"alias", "dd"}
+	returnstring := ""
+	pcmd := strings.Fields(cmd)
+	for _, s := range commands {
+		if len(pcmd) != 0 {
+			if pcmd[0] == s {
+				println("Match: " + s)
+				println("Full: " + cmd)
+				returnstring = cmd
+			} else {
+				returnstring = "no"
+			}
+		} else {
+			returnstring = "no"
 		}
 	}
+	return returnstring
 }
 
 func main() {
 	ufiles := GetUserWithHome()
 	for _, ufile := range ufiles {
 		newfile := "/home/" + ufile + "/.bash_history"
-		stats := CheckFile("/home/" + ufile + "/.bash_history")
+		stats := CheckFile(newfile)
 		if stats {
 			hfile, err := os.Open(newfile)
 			if err != nil {
@@ -80,10 +97,16 @@ func main() {
 					panic(err)
 				}
 			}
-			//for scanner.Scan() {
-			//	println(scanner.Text())
-			// analyze lines for interesting commands
-			//}
+
+			i := 0
+			for scanner.Scan() {
+				i++
+				cmd := FindDeviousCmd(scanner.Text())
+				if cmd != "no" {
+					println(cmd)
+					//println(i)
+				}
+			}
 		}
 	}
 }
