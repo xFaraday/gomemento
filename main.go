@@ -2,10 +2,96 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"os"
 	"os/exec"
 	"strings"
 )
+
+func VerifyFile(m map[int]string) {
+	newfile := "/etc/passwd"
+	stats := CheckFile(newfile)
+	if stats {
+		hfile, err := os.Open(newfile)
+		if err != nil {
+			panic(err)
+		}
+		defer hfile.Close()
+
+		scanner := bufio.NewScanner(hfile)
+
+		scanner.Split(bufio.ScanLines)
+
+		success := scanner.Scan()
+		if !success {
+			err = scanner.Err()
+			if err != nil {
+				panic(err)
+			}
+		}
+		i := 1
+		for scanner.Scan() {
+			i++
+			if m[i] != scanner.Text() {
+				println(i)
+				println(": line does not match")
+			}
+		}
+	}
+}
+
+func RestorePoint() {
+	dirforbackups := "/opt/memento"
+	if _, err := os.Stat(dirforbackups); err != nil {
+		if os.IsNotExist(err) {
+			os.Mkdir(dirforbackups, 0777)
+		} else {
+			panic(err)
+		}
+	}
+
+	newfile := "/etc/passwd"
+	stats := CheckFile(newfile)
+	if stats {
+		hfile, err := os.Open(newfile)
+		if err != nil {
+			panic(err)
+		}
+		defer hfile.Close()
+
+		scanner := bufio.NewScanner(hfile)
+
+		scanner.Split(bufio.ScanLines)
+
+		success := scanner.Scan()
+		if !success {
+			err = scanner.Err()
+			if err != nil {
+				panic(err)
+			}
+		}
+
+		var m = make(map[int]string)
+
+		i := 1
+		for scanner.Scan() {
+			i++
+			m[i] = scanner.Text()
+		}
+
+		//VerifyFile(m)
+		//export the map to a file as json for later
+		// verification.  Maybe use a database? Idk.
+		//then if the file has been modified, like the
+		//mod date doesnt match up.  Then call VerifiyFile
+		jsonStr, err := json.Marshal(m)
+		if err != nil {
+			panic(err)
+		} else {
+			println(string(jsonStr))
+		}
+	}
+}
 
 func GetUserWithHome() []string {
 	out, err := exec.Command("ls", "/home").Output()
@@ -74,7 +160,7 @@ func FindDeviousCmd(cmd string) string {
 	return returnstring
 }
 
-func main() {
+func cmdhist() {
 	ufiles := GetUserWithHome()
 	for _, ufile := range ufiles {
 		newfile := "/home/" + ufile + "/.bash_history"
@@ -109,4 +195,14 @@ func main() {
 			}
 		}
 	}
+}
+
+func main() {
+	id := os.Geteuid()
+	if id != 0 {
+		println("You must be root to run this program.")
+		os.Exit(1)
+	}
+	//cmdhist()
+	RestorePoint()
 }
