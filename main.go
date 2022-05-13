@@ -3,6 +3,8 @@ package main
 import (
 	"bufio"
 	"encoding/json"
+	"flag"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -40,17 +42,10 @@ func VerifyFile(m map[int]string) {
 	}
 }
 
-func RestorePoint() {
+func CreateRestorePoint(file string) {
 	dirforbackups := "/opt/memento"
-	if _, err := os.Stat(dirforbackups); err != nil {
-		if os.IsNotExist(err) {
-			os.Mkdir(dirforbackups, 0777)
-		} else {
-			panic(err)
-		}
-	}
 
-	newfile := "/etc/passwd"
+	newfile := file
 	stats := CheckFile(newfile)
 	if stats {
 		hfile, err := os.Open(newfile)
@@ -90,6 +85,29 @@ func RestorePoint() {
 		} else {
 			println(string(jsonStr))
 		}
+		werr := ioutil.WriteFile(dirforbackups+"/passwd.json", jsonStr, 0644)
+		if werr != nil {
+			panic(werr)
+		}
+
+	}
+}
+
+func RestoreController(i int, file string) {
+	dirforbackups := "/opt/memento"
+	if _, err := os.Stat(dirforbackups); err != nil {
+		if os.IsNotExist(err) {
+			os.Mkdir(dirforbackups, 0777)
+		} else {
+			panic(err)
+		}
+	}
+
+	switch i {
+	case 1:
+		CreateRestorePoint(file)
+	case 2:
+		//VerifyFile(file)
 	}
 }
 
@@ -203,6 +221,12 @@ func main() {
 		println("You must be root to run this program.")
 		os.Exit(1)
 	}
+	//Add TUI with bubbletea
+	numbPtr := flag.Int("mode", 42, "an int")
+
+	flag.Parse()
+
+	println(numbPtr)
 	//cmdhist()
-	RestorePoint()
+	//RestoreController()
 }
