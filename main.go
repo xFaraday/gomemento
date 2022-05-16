@@ -10,7 +10,7 @@ import (
 	"strings"
 )
 
-func VerifyFile(m map[int]string) {
+func VerifyFile(file string) {
 	newfile := "/etc/passwd"
 	stats := CheckFile(newfile)
 	if stats {
@@ -34,17 +34,51 @@ func VerifyFile(m map[int]string) {
 		i := 1
 		for scanner.Scan() {
 			i++
-			if m[i] != scanner.Text() {
-				println(i)
-				println(": line does not match")
-			}
+			//if m[i] != scanner.Text() {
+			//	println(i)
+			//	println(": line does not match")
+			//}
 		}
 	}
 }
 
 func CreateRestorePoint(file string) {
 	dirforbackups := "/opt/memento"
+	indexfile := "/opt/memento/index.safe"
+	/*
+		Index file format:
+		Simple ->
+		fullpath:localfile
+		file:storename
+	*/
+	//indexstr := strings.Split(file, "/")
+	strsplit := strings.Split(file, "/")
+	storename := strsplit[len(strsplit)-1]
 
+	indexstr := file + "-:-" + storename // + "-:-" + datemodified
+	newindextstr := []byte(indexstr)
+	if _, err := os.Stat(indexfile); err != nil {
+		if os.IsNotExist(err) {
+			werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
+			if werr != nil {
+				panic(werr)
+			}
+		} else {
+			panic(err)
+		}
+		if os.IsExist(err) {
+			//append to the index file
+			appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				panic(err)
+			}
+			println("Appending to index file")
+			appendfile.WriteString("\n" + indexstr)
+			defer appendfile.Close()
+		} else {
+			panic(err)
+		}
+	}
 	newfile := file
 	stats := CheckFile(newfile)
 	if stats {
@@ -85,7 +119,7 @@ func CreateRestorePoint(file string) {
 		} else {
 			println(string(jsonStr))
 		}
-		werr := ioutil.WriteFile(dirforbackups+"/passwd.json", jsonStr, 0644)
+		werr := ioutil.WriteFile(dirforbackups+"/"+storename+".json", jsonStr, 0644)
 		if werr != nil {
 			panic(werr)
 		}
@@ -107,7 +141,8 @@ func RestoreController(i int, file string) {
 	case 1:
 		CreateRestorePoint(file)
 	case 2:
-		//VerifyFile(file)
+		//index file logic
+		VerifyFile(file)
 	}
 }
 
@@ -221,12 +256,19 @@ func main() {
 		println("You must be root to run this program.")
 		os.Exit(1)
 	}
-	//Add TUI with bubbletea
-	numbPtr := flag.Int("mode", 42, "an int")
+	//args
+	var (
+		file string
+		mode int
+	)
 
+	flag.StringVar(&file, "file", "", "File to check")
+	flag.IntVar(&mode, "mode", 0, "Mode to run")
 	flag.Parse()
-
-	println(numbPtr)
+	println(mode)
+	println(file)
 	//cmdhist()
-	//RestoreController()
+	//indexstr := strings.Split(file, "/")
+	//println(indexstr[len(indexstr)-1])
+	RestoreController(mode, file)
 }
