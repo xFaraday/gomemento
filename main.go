@@ -10,78 +10,51 @@ import (
 	"strings"
 )
 
-func VerifyFile(file string) {
-	newfile := "/etc/passwd"
-	stats := CheckFile(newfile)
-	if stats {
-		hfile, err := os.Open(newfile)
-		if err != nil {
-			panic(err)
-		}
-		defer hfile.Close()
+type finfo struct {
+	name string
+	size int64
+	time string
+}
 
-		scanner := bufio.NewScanner(hfile)
+func VerifyFile(file string, m map[int]string) {
 
-		scanner.Split(bufio.ScanLines)
-
-		success := scanner.Scan()
-		if !success {
-			err = scanner.Err()
-			if err != nil {
-				panic(err)
-			}
-		}
-		i := 1
-		for scanner.Scan() {
-			i++
-			//if m[i] != scanner.Text() {
-			//	println(i)
-			//	println(": line does not match")
-			//}
-		}
-	}
 }
 
 func CreateRestorePoint(file string) {
 	dirforbackups := "/opt/memento"
 	indexfile := "/opt/memento/index.safe"
-	/*
-		Index file format:
-		Simple ->
-		fullpath:localfile
-		file:storename
-	*/
-	//indexstr := strings.Split(file, "/")
-	strsplit := strings.Split(file, "/")
-	storename := strsplit[len(strsplit)-1]
+	newfile := file
+	stats := CheckFile(newfile)
+	if stats.size != 0 {
+		/*
+			Index file format:
+			Simple ->
+			fullpath:localfilenamewithoutthejson:thetimeoflastmodification
+			file:storename:stats.time
+			using -:- for easier splitting
+		*/
+		//indexstr := strings.Split(file, "/")
+		strsplit := strings.Split(file, "/")
+		storename := strsplit[len(strsplit)-1]
 
-	indexstr := file + "-:-" + storename // + "-:-" + datemodified
-	newindextstr := []byte(indexstr)
-	if _, err := os.Stat(indexfile); err != nil {
-		if os.IsNotExist(err) {
+		indexstr := file + "-:-" + storename + "-:-" + stats.time + "\n"
+		newindextstr := []byte(indexstr)
+
+		if _, err := os.Stat(indexfile); os.IsNotExist(err) {
 			werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
 			if werr != nil {
 				panic(werr)
 			}
 		} else {
-			panic(err)
-		}
-		if os.IsExist(err) {
-			//append to the index file
 			appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
 				panic(err)
 			}
 			println("Appending to index file")
-			appendfile.WriteString("\n" + indexstr)
+			appendfile.WriteString(indexstr)
 			defer appendfile.Close()
-		} else {
-			panic(err)
 		}
-	}
-	newfile := file
-	stats := CheckFile(newfile)
-	if stats {
+
 		hfile, err := os.Open(newfile)
 		if err != nil {
 			panic(err)
@@ -117,7 +90,7 @@ func CreateRestorePoint(file string) {
 		if err != nil {
 			panic(err)
 		} else {
-			println(string(jsonStr))
+			//println(string(jsonStr))
 		}
 		werr := ioutil.WriteFile(dirforbackups+"/"+storename+".json", jsonStr, 0644)
 		if werr != nil {
@@ -142,7 +115,44 @@ func RestoreController(i int, file string) {
 		CreateRestorePoint(file)
 	case 2:
 		//index file logic
-		VerifyFile(file)
+		stats := CheckFile(file)
+		indexfile := "/opt/memento/index.safe"
+		println(stats.time)
+		ifile, err := os.Open(indexfile)
+		if err != nil {
+			panic(err)
+		}
+		defer ifile.Close()
+
+		scanner := bufio.NewScanner(ifile)
+		// optionally, resize scanner's capacity for lines over 64K, see next example
+		for scanner.Scan() {
+			a := 0
+			println(scanner.Text())
+			strpre := scanner.Text()
+			tex := strings.Split(strpre, "-:-")
+			if tex[0] == file {
+				println("file found in index file: " + tex[0])
+				if tex[2] != stats.time {
+					println("file:" + tex[0] + " MODIFIED")
+					statsback := CheckFile(tex[0])
+					if statsback.size != 0 {
+						//REFACTOR EVERYTHING WITH FUNCTION THAT READS AND RETURNS THE SCANNER
+						//VerifyFile(file, m)
+					}
+				} else {
+					println("file:" + tex[0] + " NOT MODIFIED")
+				}
+				a++
+			}
+			if a == 0 {
+				println("file not found in index file, perform backup first")
+			}
+		}
+
+		if err := scanner.Err(); err != nil {
+			panic(err)
+		}
 	}
 }
 
@@ -155,20 +165,22 @@ func GetUserWithHome() []string {
 	return s
 }
 
-func CheckFile(name string) bool {
+func CheckFile(name string) finfo {
 	fileInfo, err := os.Stat(name)
 	if err != nil {
 		if os.IsNotExist(err) {
 			println("file not found:", fileInfo.Name())
-			return false
 		}
 	}
 	t := fileInfo.ModTime().String()
-	println("File:", name)
-	println("Size:", fileInfo.Size(), "bytes")
-	println("Last modified:", t)
-	//call other function with channels
-	return true
+	b := fileInfo.Size()
+
+	i := finfo{
+		name: name,
+		size: b,
+		time: t,
+	}
+	return i
 }
 
 func FindDeviousCmd(cmd string) string {
@@ -218,7 +230,7 @@ func cmdhist() {
 	for _, ufile := range ufiles {
 		newfile := "/home/" + ufile + "/.bash_history"
 		stats := CheckFile(newfile)
-		if stats {
+		if stats.size != 0 {
 			hfile, err := os.Open(newfile)
 			if err != nil {
 				panic(err)
