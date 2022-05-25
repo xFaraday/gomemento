@@ -2,11 +2,14 @@ package main
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"flag"
 	"io/ioutil"
+	"net/http"
 	"os"
 	"os/exec"
+	"strconv"
 	"strings"
 )
 
@@ -16,15 +19,124 @@ type finfo struct {
 	time string
 }
 
-func VerifyFile(file string, m map[int]string) {
+func PostToServ(m map[int]string) {
+	//post files to web server
+
+	/*
+		stuff to add to this POC
+
+		-> Add way to poll webserver first, to check if server is up and reachable
+		-> Add authentication mechanism, maybe just custom header?
+		-> Add way to give json and file name to server
+		--> Maybe to do it like this:
+			Post filename, file path, and hostname | /api/v1/store
+			Post json /api/v1/store/{filename+hostname}
+	*/
+	jsonStr, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	} else {
+		//println(string(jsonStr))
+	}
+
+	resp, err := http.Post("http://localhost:80", "application/json", bytes.NewBuffer(jsonStr))
+
+	if err != nil {
+		panic(err)
+	} else {
+		println(resp.Status)
+	}
+
+	defer resp.Body.Close()
+}
+
+func OpenFile(file string) []string {
+	var s []string
+	stats := CheckFile(file)
+	if stats.size != 0 {
+		f, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+		// remember to close the file at the end of the program
+		defer f.Close()
+
+		// read the file line by line using scanner
+		scanner := bufio.NewScanner(f)
+
+		for scanner.Scan() {
+			// do something with a line
+			s = append(s, scanner.Text())
+		}
+
+		if err := scanner.Err(); err != nil {
+			panic(err)
+		}
+
+		//print slice with contents of file
+		//for _, str := range s {
+		//	println(str)
+		//}
+	}
+	return s
+}
+
+func VerifyFile(file string, m map[int]string, jsonfile string) {
+	//dirforbackups := "/opt/memento"
+	//fullfilename := dirforbackups + "/" + jsonfile + ".json"
+	//indexfile := "/opt/memento/index.safe"
+	//	jsonstr := OpenFile(fullfilename)
 
 }
 
-func CreateRestorePoint(file string) {
+func BackFile(name string, file string, m map[int]string) {
 	dirforbackups := "/opt/memento"
+	strsplit := strings.Split(file, "/")
+	storename := strsplit[len(strsplit)-1]
+	backupname := dirforbackups + "/" + storename + ".txt"
+
+	for line, lineval := range m {
+		i := strconv.Itoa(line)
+		newline := i + "-:-" + lineval + "\n"
+		newlinebyte := []byte(newline)
+		if _, err := os.Stat(backupname); os.IsNotExist(err) {
+			werr := ioutil.WriteFile(backupname, newlinebyte, 0644)
+			if werr != nil {
+				panic(werr)
+			}
+		} else {
+			appendfile, err := os.OpenFile(backupname, os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				panic(err)
+			}
+			appendfile.WriteString(newline)
+			defer appendfile.Close()
+		}
+	}
+}
+
+func ExistsInIndex(indexfile string, file string) string {
+
+	strsplit := strings.Split(file, "/")
+	storename := strsplit[len(strsplit)-1]
+	strlist := OpenFile(indexfile)
+
+	for _, str := range strlist {
+		splittysplit := strings.Split(str, "-:-")
+		if splittysplit[0] == file {
+			println("exact file exists in index")
+			return "new"
+		}
+		if splittysplit[1] == storename {
+			println("duplicate file name")
+			return "filename"
+		}
+	}
+}
+
+func CreateRestorePoint(file string) {
 	indexfile := "/opt/memento/index.safe"
-	newfile := file
-	stats := CheckFile(newfile)
+	stats := CheckFile(file)
 	if stats.size != 0 {
 		/*
 			Index file format:
@@ -46,61 +158,34 @@ func CreateRestorePoint(file string) {
 				panic(werr)
 			}
 		} else {
+			checkresult := ExistsInIndex(indexfile, file)
 			appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
 				panic(err)
 			}
-			println("Appending to index file")
+			println("APPENDING TO INDEX FILE")
 			appendfile.WriteString(indexstr)
 			defer appendfile.Close()
 		}
 
-		hfile, err := os.Open(newfile)
-		if err != nil {
-			panic(err)
-		}
-		defer hfile.Close()
-
-		scanner := bufio.NewScanner(hfile)
-
-		scanner.Split(bufio.ScanLines)
-
-		success := scanner.Scan()
-		if !success {
-			err = scanner.Err()
-			if err != nil {
-				panic(err)
-			}
-		}
+		strlist := OpenFile(file)
 
 		var m = make(map[int]string)
 
-		i := 1
-		for scanner.Scan() {
+		i := 0
+		for _, str := range strlist {
 			i++
-			m[i] = scanner.Text()
+			m[i] = str
 		}
+		println("BACKING UP FILE: " + file)
 
-		//VerifyFile(m)
-		//export the map to a file as json for later
-		// verification.  Maybe use a database? Idk.
-		//then if the file has been modified, like the
-		//mod date doesnt match up.  Then call VerifiyFile
-		jsonStr, err := json.Marshal(m)
-		if err != nil {
-			panic(err)
-		} else {
-			//println(string(jsonStr))
-		}
-		werr := ioutil.WriteFile(dirforbackups+"/"+storename+".json", jsonStr, 0644)
-		if werr != nil {
-			panic(werr)
-		}
-
+		BackFile(storename, file, m)
+		//PostToServ(m)
 	}
 }
 
 func RestoreController(i int, file string) {
+	indexfile := "/opt/memento/index.safe"
 	dirforbackups := "/opt/memento"
 	if _, err := os.Stat(dirforbackups); err != nil {
 		if os.IsNotExist(err) {
@@ -116,20 +201,11 @@ func RestoreController(i int, file string) {
 	case 2:
 		//index file logic
 		stats := CheckFile(file)
-		indexfile := "/opt/memento/index.safe"
 		println(stats.time)
-		ifile, err := os.Open(indexfile)
-		if err != nil {
-			panic(err)
-		}
-		defer ifile.Close()
+		strlist := OpenFile(indexfile)
 
-		scanner := bufio.NewScanner(ifile)
-		// optionally, resize scanner's capacity for lines over 64K, see next example
-		for scanner.Scan() {
-			a := 0
-			println(scanner.Text())
-			strpre := scanner.Text()
+		for _, str := range strlist {
+			strpre := str
 			tex := strings.Split(strpre, "-:-")
 			if tex[0] == file {
 				println("file found in index file: " + tex[0])
@@ -137,21 +213,35 @@ func RestoreController(i int, file string) {
 					println("file:" + tex[0] + " MODIFIED")
 					statsback := CheckFile(tex[0])
 					if statsback.size != 0 {
-						//REFACTOR EVERYTHING WITH FUNCTION THAT READS AND RETURNS THE SCANNER
+						/*
+							Gets contents of the file's present location. tex[0].
+							Transfer the contents into a [int]string map called m.
+							Pass this to VerifyFile.  VerifyFile compares the new
+							interface with the saved json file at /opt/memento.
+						*/
 						//VerifyFile(file, m)
+						packlist := OpenFile(tex[0])
+						var m = make(map[int]string)
+
+						i := 0
+						for _, pack := range packlist {
+							i++
+							m[i] = pack
+						}
+						VerifyFile(file, m, tex[1])
 					}
 				} else {
 					println("file:" + tex[0] + " NOT MODIFIED")
+					println("\n\n" + "NO ACTION TAKEN")
 				}
-				a++
-			}
-			if a == 0 {
-				println("file not found in index file, perform backup first")
 			}
 		}
 
-		if err := scanner.Err(); err != nil {
-			panic(err)
+	case 3:
+		strlist := OpenFile(file)
+		for _, str := range strlist {
+			//do concurrent shit
+			println(str)
 		}
 	}
 }
@@ -229,34 +319,13 @@ func cmdhist() {
 	ufiles := GetUserWithHome()
 	for _, ufile := range ufiles {
 		newfile := "/home/" + ufile + "/.bash_history"
-		stats := CheckFile(newfile)
-		if stats.size != 0 {
-			hfile, err := os.Open(newfile)
-			if err != nil {
-				panic(err)
-			}
-			defer hfile.Close()
-
-			scanner := bufio.NewScanner(hfile)
-
-			scanner.Split(bufio.ScanLines)
-
-			success := scanner.Scan()
-			if !success {
-				err = scanner.Err()
-				if err != nil {
-					panic(err)
-				}
-			}
-
-			i := 0
-			for scanner.Scan() {
-				i++
-				cmd := FindDeviousCmd(scanner.Text())
-				if cmd != "no" {
-					println(cmd)
-					//println(i)
-				}
+		strlist := OpenFile(newfile)
+		i := 0
+		for _, str := range strlist {
+			i++
+			cmd := FindDeviousCmd(str)
+			if cmd != "no" {
+				println(cmd)
 			}
 		}
 	}
@@ -283,4 +352,9 @@ func main() {
 	//indexstr := strings.Split(file, "/")
 	//println(indexstr[len(indexstr)-1])
 	RestoreController(mode, file)
+	//bruh := OpenFile(file)
+
+	//for _, str := range bruh {
+	//	println(str)
+	//}
 }
