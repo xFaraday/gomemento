@@ -159,6 +159,11 @@ func CreateRestorePoint(file string) {
 			}
 		} else {
 			checkresult := ExistsInIndex(indexfile, file)
+			if checkresult == "new" {
+
+			} else {
+
+			}
 			appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
 			if err != nil {
 				panic(err)
