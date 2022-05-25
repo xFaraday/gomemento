@@ -159,6 +159,16 @@ func CreateRestorePoint(file string) {
 			}
 		} else {
 			checkresult := ExistsInIndex(indexfile, file)
+			//do the checks if it already exists in the indexfile
+			//if result is new, then prompt user to overwrite prev
+			//backup.  Also would be a good idea to pull this from params
+			//else then its not a new file just has the same storename
+			//so easy solution would be to gen a random number and use
+			//that as the storename or append that to the original storename.
+			//it might actually be a good idea in general to use random numbers
+			//for all the storename completely as a layer of obfuscation.  Although
+			//if permissions are set correctly on the backup directory then it is
+			//slightly redundant.
 			if checkresult == "new" {
 
 			} else {
