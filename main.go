@@ -4,19 +4,29 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
-	"flag"
+	"fmt"
 	"io/ioutil"
+	"math/rand"
 	"net/http"
 	"os"
-	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type finfo struct {
 	name string
 	size int64
 	time string
+}
+
+type uinfo struct {
+	username  string
+	userid    string
+	groupid   string
+	homedir   string
+	shellpath string
 }
 
 func PostToServ(m map[int]string) {
@@ -116,7 +126,6 @@ func BackFile(name string, file string, m map[int]string) {
 }
 
 func ExistsInIndex(indexfile string, file string) string {
-
 	strsplit := strings.Split(file, "/")
 	storename := strsplit[len(strsplit)-1]
 	strlist := OpenFile(indexfile)
@@ -125,16 +134,17 @@ func ExistsInIndex(indexfile string, file string) string {
 		splittysplit := strings.Split(str, "-:-")
 		if splittysplit[0] == file {
 			println("exact file exists in index")
-			return "new"
+			return "newback"
 		}
 		if splittysplit[1] == storename {
 			println("duplicate file name")
 			return "filename"
 		}
 	}
+	return "new"
 }
 
-func CreateRestorePoint(file string) {
+func CreateRestorePoint(file string, overwrite string) {
 	indexfile := "/opt/memento/index.safe"
 	stats := CheckFile(file)
 	if stats.size != 0 {
@@ -169,37 +179,79 @@ func CreateRestorePoint(file string) {
 			//for all the storename completely as a layer of obfuscation.  Although
 			//if permissions are set correctly on the backup directory then it is
 			//slightly redundant.
-			if checkresult == "new" {
+			if checkresult == "newback" {
+				//prompt user to overwrite
 
-			} else {
+				if overwrite == "n" {
+					println("overwrite is set to n, exiting")
+					os.Exit(0)
+				}
 
+				if overwrite == "y" {
+					println("Overwriting previous backup of :" + file)
+				}
+
+				if overwrite == "" {
+					println("File already exists in index.  Overwrite?")
+					println("y/n")
+					var overwriteinput string
+					fmt.Scanln(&overwriteinput)
+					if overwriteinput == "y" {
+						println("Overwriting previous backup of :" + file)
+					} else {
+						println("Exiting")
+						os.Exit(0)
+					}
+				}
+				//overwrite and delete previous entry, and then add new entry
+				//or maybe just overwrite the original entry in indexfile
+			} else if checkresult == "filename" {
+				s1 := rand.NewSource(time.Now().UnixNano())
+				r1 := rand.New(s1)
+				storename = storename + "-" + strconv.Itoa(r1.Intn(100))
+				println(storename)
+
+				strlist := OpenFile(file)
+
+				var m = make(map[int]string)
+
+				i := 0
+				for _, str := range strlist {
+					i++
+					m[i] = str
+				}
+				println("BACKING UP FILE: " + file)
+
+				BackFile(storename, file, m)
+				//PostToServ(m)
+			} else if checkresult == "new" {
+				appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
+				if err != nil {
+					panic(err)
+				}
+				println("APPENDING TO INDEX FILE")
+				appendfile.WriteString(indexstr)
+				defer appendfile.Close()
+
+				strlist := OpenFile(file)
+
+				var m = make(map[int]string)
+
+				i := 0
+				for _, str := range strlist {
+					i++
+					m[i] = str
+				}
+				println("BACKING UP FILE: " + file)
+
+				BackFile(storename, file, m)
+				//PostToServ(m)
 			}
-			appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
-			if err != nil {
-				panic(err)
-			}
-			println("APPENDING TO INDEX FILE")
-			appendfile.WriteString(indexstr)
-			defer appendfile.Close()
 		}
-
-		strlist := OpenFile(file)
-
-		var m = make(map[int]string)
-
-		i := 0
-		for _, str := range strlist {
-			i++
-			m[i] = str
-		}
-		println("BACKING UP FILE: " + file)
-
-		BackFile(storename, file, m)
-		//PostToServ(m)
 	}
 }
 
-func RestoreController(i int, file string) {
+func RestoreController(i int, file string, overwrite string) {
 	indexfile := "/opt/memento/index.safe"
 	dirforbackups := "/opt/memento"
 	if _, err := os.Stat(dirforbackups); err != nil {
@@ -212,7 +264,7 @@ func RestoreController(i int, file string) {
 
 	switch i {
 	case 1:
-		CreateRestorePoint(file)
+		CreateRestorePoint(file, overwrite)
 	case 2:
 		//index file logic
 		stats := CheckFile(file)
@@ -261,13 +313,50 @@ func RestoreController(i int, file string) {
 	}
 }
 
-func GetUserWithHome() []string {
-	out, err := exec.Command("ls", "/home").Output()
-	if err != nil {
-		panic(err)
+func GetHistFile(username string, shellname string, homedir string) string {
+	// for the future, refernce the $HISTFILE variable for each users env
+	switch {
+	case shellname == "bash" || shellname == "sh":
+		shellpathfull := homedir + "/.bash_history"
+		return shellpathfull
+	case shellname == "zsh":
+		shellpathfull := homedir + "/.zsh_history"
+		return shellpathfull
+	case shellname == "fish":
+		shellpathfull := homedir + "/.local/share/fish/fish_history"
+		return shellpathfull
 	}
-	s := strings.Fields(string(out))
-	return s
+	return "shell not found"
+}
+
+func GetUserInfo() uinfo {
+	var expr = regexp.MustCompile(`sh$`)
+
+	strlist := OpenFile("/etc/passwd")
+	for _, str := range strlist {
+		//Does user have a default shell?
+		if expr.MatchString(str) {
+			strsplit := strings.Split(str, ":")
+			username := strsplit[0]
+			userid := strsplit[2]
+			groupid := strsplit[3]
+			homedir := strsplit[5]
+			shell := strsplit[6]
+			shellsplit := strings.Split(shell, "/")
+			shellname := shellsplit[len(shellsplit)-1]
+
+			shellpathfull := GetHistFile(username, shellname, homedir)
+
+			u := uinfo{
+				username:  username,
+				userid:    userid,
+				groupid:   groupid,
+				homedir:   homedir,
+				shellpath: shellpathfull,
+			}
+			return u
+		}
+	}
 }
 
 func CheckFile(name string) finfo {
@@ -331,17 +420,14 @@ func FindDeviousCmd(cmd string) string {
 }
 
 func cmdhist() {
-	ufiles := GetUserWithHome()
-	for _, ufile := range ufiles {
-		newfile := "/home/" + ufile + "/.bash_history"
-		strlist := OpenFile(newfile)
-		i := 0
-		for _, str := range strlist {
-			i++
-			cmd := FindDeviousCmd(str)
-			if cmd != "no" {
-				println(cmd)
-			}
+	user := GetUserInfo()
+	strlist := OpenFile(user.shellpath)
+	i := 0
+	for _, str := range strlist {
+		i++
+		cmd := FindDeviousCmd(str)
+		if cmd != "no" {
+			println(cmd)
 		}
 	}
 }
@@ -353,23 +439,32 @@ func main() {
 		os.Exit(1)
 	}
 	//args
-	var (
-		file string
-		mode int
-	)
+	/*
+		var (
+			file      string
+			mode      int
+			overwrite string
+		)
 
-	flag.StringVar(&file, "file", "", "File to check")
-	flag.IntVar(&mode, "mode", 0, "Mode to run")
-	flag.Parse()
-	println(mode)
-	println(file)
-	//cmdhist()
+		flag.StringVar(&file, "file", "", "File to check")
+		flag.IntVar(&mode, "mode", 0, "Mode to run")
+		flag.StringVar(&file, "overwrite", "", "Overwrite backup; perform new backup")
+		flag.Parse()
+		println(mode)
+		println(file)
+		println(overwrite)
+
+	*/
+
+	//RestoreController(mode, file, overwrite)
+
 	//indexstr := strings.Split(file, "/")
 	//println(indexstr[len(indexstr)-1])
-	RestoreController(mode, file)
 	//bruh := OpenFile(file)
 
 	//for _, str := range bruh {
 	//	println(str)
 	//}
+
+	cmdhist()
 }
