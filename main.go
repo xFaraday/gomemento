@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
@@ -91,12 +92,38 @@ func OpenFile(file string) []string {
 	return s
 }
 
-func VerifyFile(file string, m map[int]string, jsonfile string) {
-	//dirforbackups := "/opt/memento"
-	//fullfilename := dirforbackups + "/" + jsonfile + ".json"
-	//indexfile := "/opt/memento/index.safe"
-	//	jsonstr := OpenFile(fullfilename)
+//https://gist.github.com/ndarville/3166060
 
+func GetDiff(strlist []string, m map[int]string) []string {
+	lenofcurrent := len(strlist)
+	lenofbackup := len(m)
+	offset := 0
+	for i := 0; i < lenofcurrent; i++ {
+		if i > lenofbackup {
+			//println(offset)
+		}
+	}
+}
+
+func VerifyFile(file string, m map[int]string) {
+	//file = new version
+	//m = backup version
+	strlist := OpenFile(file)
+	println(len(strlist))
+	println(len(m))
+	if len(strlist) != len(m) {
+		//line numbers added or subtracted
+		if len(strlist) > len(m) {
+			diff := len(strlist) - len(m)
+			println("lines added:", strconv.Itoa(diff))
+		}
+		if len(m) > len(strlist) {
+			diff := len(m) - len(strlist)
+			println("lines removed:", strconv.Itoa(diff))
+		}
+	} else {
+		//line numbers are the same, nice
+	}
 }
 
 func BackFile(name string, file string, m map[int]string) {
@@ -167,6 +194,18 @@ func CreateRestorePoint(file string, overwrite string) {
 			if werr != nil {
 				panic(werr)
 			}
+			strlist := OpenFile(file)
+
+			var m = make(map[int]string)
+
+			i := 0
+			for _, str := range strlist {
+				i++
+				m[i] = str
+			}
+			println("BACKING UP FILE: " + file)
+
+			BackFile(storename, file, m)
 		} else {
 			checkresult := ExistsInIndex(indexfile, file)
 			//do the checks if it already exists in the indexfile
@@ -278,7 +317,9 @@ func RestoreController(i int, file string, overwrite string) {
 				println("file found in index file: " + tex[0])
 				if tex[2] != stats.time {
 					println("file:" + tex[0] + " MODIFIED")
-					statsback := CheckFile(tex[0])
+					backupfile := dirforbackups + "/" + tex[1] + ".txt"
+					println(backupfile)
+					statsback := CheckFile(backupfile)
 					if statsback.size != 0 {
 						/*
 							Gets contents of the file's present location. tex[0].
@@ -286,16 +327,15 @@ func RestoreController(i int, file string, overwrite string) {
 							Pass this to VerifyFile.  VerifyFile compares the new
 							interface with the saved json file at /opt/memento.
 						*/
-						//VerifyFile(file, m)
-						packlist := OpenFile(tex[0])
+						packlist := OpenFile(backupfile)
 						var m = make(map[int]string)
 
 						i := 0
 						for _, pack := range packlist {
-							i++
 							m[i] = pack
+							i++
 						}
-						VerifyFile(file, m, tex[1])
+						VerifyFile(file, m)
 					}
 				} else {
 					println("file:" + tex[0] + " NOT MODIFIED")
@@ -357,6 +397,7 @@ func GetUserInfo() uinfo {
 			return u
 		}
 	}
+	return uinfo{}
 }
 
 func CheckFile(name string) finfo {
@@ -439,24 +480,22 @@ func main() {
 		os.Exit(1)
 	}
 	//args
-	/*
-		var (
-			file      string
-			mode      int
-			overwrite string
-		)
 
-		flag.StringVar(&file, "file", "", "File to check")
-		flag.IntVar(&mode, "mode", 0, "Mode to run")
-		flag.StringVar(&file, "overwrite", "", "Overwrite backup; perform new backup")
-		flag.Parse()
-		println(mode)
-		println(file)
-		println(overwrite)
+	var (
+		file      string
+		mode      int
+		overwrite string
+	)
 
-	*/
+	flag.StringVar(&file, "file", "", "File to check")
+	flag.IntVar(&mode, "mode", 0, "Mode to run")
+	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup")
+	flag.Parse()
+	println(mode)
+	println(file)
+	println(overwrite)
 
-	//RestoreController(mode, file, overwrite)
+	RestoreController(mode, file, overwrite)
 
 	//indexstr := strings.Split(file, "/")
 	//println(indexstr[len(indexstr)-1])
@@ -466,5 +505,5 @@ func main() {
 	//	println(str)
 	//}
 
-	cmdhist()
+	//cmdhist()
 }
