@@ -94,14 +94,54 @@ func OpenFile(file string) []string {
 
 //https://gist.github.com/ndarville/3166060
 
-func GetDiff(strlist []string, m map[int]string) []string {
-	lenofcurrent := len(strlist)
-	lenofbackup := len(m)
-	offset := 0
-	for i := 0; i < lenofcurrent; i++ {
-		if i > lenofbackup {
-			//println(offset)
+func GetDiff(strlist []string, m map[int]string) /*[]string*/ {
+	var n = make(map[string]int)
+	var o = make(map[string]int)
+
+	for i, str := range strlist {
+		StrIter := strconv.Itoa(i+1) + "-:-" + str
+		if val, ok := n[StrIter]; ok {
+			if val == 1 {
+				// val + 1 == n[str] = 2
+				n[StrIter] = val + 1
+			} else {
+				//3 = "many"
+				n[StrIter] = 3
+			}
+		} else {
+			n[StrIter] = 1
 		}
+	}
+
+	for _, str := range m {
+		//splittysplit := strings.Split(str, "-:-")
+		//println(splittysplit[1])
+		if val, ok := o[str]; ok {
+			if val == 1 {
+				o[str] = val + 1
+			} else {
+				//3 = "many"
+				o[str] = 3
+			}
+		} else {
+			o[str] = 1
+		}
+	}
+
+	/*
+		So if the same line occurs once in both n and o, then it is UNCHANGED.
+		how we handle this is to remove them from n and m? or just remove them from n.
+	*/
+	//var singletonlines = []string{}
+	//for key, val := range n {
+	//	splittysplit := strings.Split(key, "-:-")
+
+	//}
+	//for _, str := range singletonlines {
+	//
+	//}
+	for i, _ := range n {
+		println(i)
 	}
 }
 
@@ -111,19 +151,23 @@ func VerifyFile(file string, m map[int]string) {
 	strlist := OpenFile(file)
 	println(len(strlist))
 	println(len(m))
-	if len(strlist) != len(m) {
-		//line numbers added or subtracted
-		if len(strlist) > len(m) {
-			diff := len(strlist) - len(m)
-			println("lines added:", strconv.Itoa(diff))
+
+	GetDiff(strlist, m)
+	/*
+		if len(strlist) != len(m) {
+			//line numbers added or subtracted
+			if len(strlist) > len(m) {
+				diff := len(strlist) - len(m)
+				println("lines added:", strconv.Itoa(diff))
+			}
+			if len(m) > len(strlist) {
+				diff := len(m) - len(strlist)
+				println("lines removed:", strconv.Itoa(diff))
+			}
+		} else {
+			//line numbers are the same, nice
 		}
-		if len(m) > len(strlist) {
-			diff := len(m) - len(strlist)
-			println("lines removed:", strconv.Itoa(diff))
-		}
-	} else {
-		//line numbers are the same, nice
-	}
+	*/
 }
 
 func BackFile(name string, file string, m map[int]string) {
@@ -473,37 +517,60 @@ func cmdhist() {
 	}
 }
 
+func EstablishPersistence() {
+
+}
+
+func usage() {
+	fmt.Printf("\nGoMemento Usage -> \n")
+	fmt.Printf("Options:\n")
+	flag.PrintDefaults()
+	println("\nExamples ->")
+	println("\t./gomemento --mode=1")
+	println("\t./gomemento --mode=2 --file=/etc/passwd --filemode=1 --overwrite=y")
+	println("\n")
+}
+
 func main() {
-	id := os.Geteuid()
-	if id != 0 {
+	if os.Getegid() != 0 {
 		println("You must be root to run this program.")
 		os.Exit(1)
 	}
-	//args
 
 	var (
-		file      string
 		mode      int
+		file      string
+		filemode  int
 		overwrite string
 	)
 
-	flag.StringVar(&file, "file", "", "File to check")
-	flag.IntVar(&mode, "mode", 0, "Mode to run")
-	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup")
+	flag.StringVar(&file, "file", "", "File path for backup or verify")
+	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file stuff")
+	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup [y/n]")
+	flag.IntVar(&filemode, "filemode", 0, "file mode to run in. 1 = backup, 2 = verify")
 	flag.Parse()
-	println(mode)
-	println(file)
-	println(overwrite)
 
-	RestoreController(mode, file, overwrite)
+	if len(os.Args) <= 1 {
+		usage()
+		os.Exit(1)
+	}
 
-	//indexstr := strings.Split(file, "/")
-	//println(indexstr[len(indexstr)-1])
-	//bruh := OpenFile(file)
+	if mode != 1 && mode != 2 {
+		usage()
+		os.Exit(1)
+	}
 
-	//for _, str := range bruh {
-	//	println(str)
-	//}
-
-	//cmdhist()
+	if mode == 1 {
+		cmdhist()
+	} else if mode == 2 {
+		if len(file) == 0 {
+			usage()
+			os.Exit(1)
+		}
+		if filemode != 1 && filemode != 2 {
+			usage()
+			os.Exit(1)
+		}
+		RestoreController(filemode, file, overwrite)
+	}
 }
