@@ -14,6 +14,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/robfig/cron"
 )
 
 type finfo struct {
@@ -168,6 +170,16 @@ func VerifyFile(file string, m map[int]string) {
 			//line numbers are the same, nice
 		}
 	*/
+}
+
+func VerifyFiles() {
+	safestats := CheckFile("/opt/memento/index.safe")
+	if safestats.size != 0 {
+		index := OpenFile("/opt/memento/index.safe")
+		for _, str := range index {
+
+		}
+	}
 }
 
 func BackFile(name string, file string, m map[int]string) {
@@ -518,7 +530,13 @@ func cmdhist() {
 }
 
 func EstablishPersistence() {
-
+	/*
+		Make go cronjobs so that the program can be run intially to set up config,
+		then forgot about.
+	*/
+	c := cron.New()
+	c.AddFunc("@every 2m", cmdhist)
+	c.Start()
 }
 
 func usage() {
@@ -530,6 +548,34 @@ func usage() {
 	println("\t./gomemento --mode=2 --file=/etc/passwd --filemode=1 --overwrite=y")
 	println("\n")
 }
+
+/*
+stuff to do:
+	- Flesh out EstablishPersistence()
+	- Create VerifyFiles() function instead of VerifyFile()
+	-- Why not kill all the birds with one stone?
+	-- Also CheckFile() should capture the hash in addition to the other stats.
+	-- This way VerifyFiles() can compute the hash at runtime and compare it to
+	-- a hash stored in index.safe.
+	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
+	-- but stores it as "example.txt.txt" in /opt/memento.
+	- Finish cmdhist()
+	- Add process monitoring
+	-- Investigate /proc for "interesting" artifacts
+	-- Interrogate new processes, especially subprocesses that contain network capabilities
+	-- maybe layer this ability with cmdhist()
+	- Add Logging in /opt/memento/logs/
+	- Network mapper
+	-- Based on network connections over time, create a network profile for the host
+	-- Once the network profile is created and has a solid baseline, anomalies can
+	-- be detected.  The anomalies under extra scrutiny can be analyzed for easy
+	-- detection of maliscious activity.
+
+	- All these things once developed can be aggregated by the scripting engine.
+	-- One end goal beyond have a fun interface with a bunch of datapoints organized
+	-- by host is to manufacture CTI in real time.  Blacklist users, block IPs, etc.
+	-- Even categorize TTPs.
+*/
 
 func main() {
 	if os.Getegid() != 0 {
@@ -545,9 +591,8 @@ func main() {
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
-	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file stuff")
+	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files")
 	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup [y/n]")
-	flag.IntVar(&filemode, "filemode", 0, "file mode to run in. 1 = backup, 2 = verify")
 	flag.Parse()
 
 	if len(os.Args) <= 1 {
@@ -555,7 +600,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 && mode != 2 {
+	if mode != 1 && mode != 2 && mode != 3 {
 		usage()
 		os.Exit(1)
 	}
@@ -567,10 +612,8 @@ func main() {
 			usage()
 			os.Exit(1)
 		}
-		if filemode != 1 && filemode != 2 {
-			usage()
-			os.Exit(1)
-		}
 		RestoreController(filemode, file, overwrite)
+	} else if mode == 3 {
+		VerifyFiles()
 	}
 }
