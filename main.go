@@ -3,13 +3,18 @@ package main
 import (
 	"bufio"
 	"bytes"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
 	"os"
+	"os/exec"
+	"path"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,6 +27,7 @@ type finfo struct {
 	name string
 	size int64
 	time string
+	hash string
 }
 
 type uinfo struct {
@@ -30,6 +36,18 @@ type uinfo struct {
 	groupid   string
 	homedir   string
 	shellpath string
+}
+
+type ProcSnapshot struct {
+	Procs []Proc
+}
+
+type Proc struct {
+	Pid string
+	cmd string
+	bin string
+	CWD string
+	uid string
 }
 
 func PostToServ(m map[int]string) {
@@ -96,115 +114,81 @@ func OpenFile(file string) []string {
 
 //https://gist.github.com/ndarville/3166060
 
-func GetDiff(strlist []string, m map[int]string) /*[]string*/ {
-	var n = make(map[string]int)
-	var o = make(map[string]int)
-
-	for i, str := range strlist {
-		StrIter := strconv.Itoa(i+1) + "-:-" + str
-		if val, ok := n[StrIter]; ok {
-			if val == 1 {
-				// val + 1 == n[str] = 2
-				n[StrIter] = val + 1
-			} else {
-				//3 = "many"
-				n[StrIter] = 3
-			}
-		} else {
-			n[StrIter] = 1
+func GetDiff(file, storepath string) {
+	cmdout, err := exec.Command("diff", "--unified", storepath, file).CombinedOutput()
+	if err != nil {
+		switch err.(type) {
+		case *exec.ExitError:
+		default:
+			panic(err)
 		}
 	}
-
-	for _, str := range m {
-		//splittysplit := strings.Split(str, "-:-")
-		//println(splittysplit[1])
-		if val, ok := o[str]; ok {
-			if val == 1 {
-				o[str] = val + 1
-			} else {
-				//3 = "many"
-				o[str] = 3
-			}
-		} else {
-			o[str] = 1
-		}
-	}
-
-	/*
-		So if the same line occurs once in both n and o, then it is UNCHANGED.
-		how we handle this is to remove them from n and m? or just remove them from n.
-	*/
-	//var singletonlines = []string{}
-	//for key, val := range n {
-	//	splittysplit := strings.Split(key, "-:-")
-
-	//}
-	//for _, str := range singletonlines {
-	//
-	//}
-	for i, _ := range n {
-		println(i)
-	}
-}
-
-func VerifyFile(file string, m map[int]string) {
-	//file = new version
-	//m = backup version
-	strlist := OpenFile(file)
-	println(len(strlist))
-	println(len(m))
-
-	GetDiff(strlist, m)
-	/*
-		if len(strlist) != len(m) {
-			//line numbers added or subtracted
-			if len(strlist) > len(m) {
-				diff := len(strlist) - len(m)
-				println("lines added:", strconv.Itoa(diff))
-			}
-			if len(m) > len(strlist) {
-				diff := len(m) - len(strlist)
-				println("lines removed:", strconv.Itoa(diff))
-			}
-		} else {
-			//line numbers are the same, nice
-		}
-	*/
+	println(string(cmdout))
+	//maybe parse this in the future i dunno, make it nicer to read
+	//and also be able to send output to serv
 }
 
 func VerifyFiles() {
 	safestats := CheckFile("/opt/memento/index.safe")
 	if safestats.size != 0 {
-		index := OpenFile("/opt/memento/index.safe")
-		for _, str := range index {
-
+		f := OpenFile("/opt/memento/index.safe")
+		for _, str := range f {
+			var m = make(map[int]string)
+			splittysplit := strings.Split(str, "-:-")
+			//original file path
+			m[0] = splittysplit[0]
+			//file store name
+			m[1] = splittysplit[1]
+			//file mod date
+			m[2] = splittysplit[2]
+			//file hash b64
+			m[3] = splittysplit[3]
+			fCurrentStats := CheckFile(m[0])
+			if fCurrentStats.hash != m[3] {
+				//file has been modified, figure out how
+				//get the diffs my guy
+				storepath := "/opt/memento/" + m[1] + ".txt"
+				GetDiff(m[0], storepath)
+				//actions once the difference is logged
+				OverWriteOriginal(m[0], storepath)
+				println("File: " + m[0] + " has been restored to original state")
+			}
 		}
 	}
 }
 
-func BackFile(name string, file string, m map[int]string) {
+func BackFile(storename string, file string, mode int) {
 	dirforbackups := "/opt/memento"
-	strsplit := strings.Split(file, "/")
-	storename := strsplit[len(strsplit)-1]
-	backupname := dirforbackups + "/" + storename + ".txt"
-
-	for line, lineval := range m {
-		i := strconv.Itoa(line)
-		newline := i + "-:-" + lineval + "\n"
-		newlinebyte := []byte(newline)
-		if _, err := os.Stat(backupname); os.IsNotExist(err) {
-			werr := ioutil.WriteFile(backupname, newlinebyte, 0644)
-			if werr != nil {
-				panic(werr)
-			}
-		} else {
-			appendfile, err := os.OpenFile(backupname, os.O_APPEND|os.O_WRONLY, 0644)
-			if err != nil {
-				panic(err)
-			}
-			appendfile.WriteString(newline)
-			defer appendfile.Close()
+	if mode == 1 {
+		backupname := dirforbackups + "/" + storename + ".txt"
+		raw, err := os.Open(file)
+		if err != nil {
+			panic(err)
 		}
+		defer raw.Close()
+		outfile, err := os.Create(backupname)
+		if err != nil {
+			panic(err)
+		}
+		if _, err = io.Copy(outfile, raw); err != nil {
+			panic(err)
+		}
+		outfile.Close()
+	} else if mode == 2 {
+		backupname := storename
+		raw, err := os.Open(file)
+		if err != nil {
+			panic(err)
+		}
+		defer raw.Close()
+		outfile, err := os.Create(backupname)
+		if err != nil {
+			panic(err)
+		}
+		if _, err = io.Copy(outfile, raw); err != nil {
+			panic(err)
+		}
+		outfile.Close()
 	}
 }
 
@@ -227,6 +211,30 @@ func ExistsInIndex(indexfile string, file string) string {
 	return "new"
 }
 
+func OverWriteOriginal(original string, storepath string) {
+	//delete original
+	//call modified BackFile function
+	os.Remove(original)
+	BackFile(original, storepath, 2)
+
+}
+
+func OverWriteBackup(storename string, file string) {
+	f := OpenFile("/opt/memento/index.safe")
+	for _, str := range f {
+		var m = make(map[int]string)
+		splittysplit := strings.Split(str, "-:-")
+		//original file path
+		m[0] = splittysplit[0]
+		//file store name
+		m[1] = splittysplit[1]
+		if file == m[0] {
+			os.Remove("/opt/memento" + "/" + m[1] + ".txt")
+			BackFile(storename, file, 1)
+		}
+	}
+}
+
 func CreateRestorePoint(file string, overwrite string) {
 	indexfile := "/opt/memento/index.safe"
 	stats := CheckFile(file)
@@ -242,7 +250,8 @@ func CreateRestorePoint(file string, overwrite string) {
 		strsplit := strings.Split(file, "/")
 		storename := strsplit[len(strsplit)-1]
 
-		indexstr := file + "-:-" + storename + "-:-" + stats.time + "\n"
+		// /etc/passwd-:-passwd.txt-:-some date-:-hash
+		indexstr := file + "-:-" + storename + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
 		newindextstr := []byte(indexstr)
 
 		if _, err := os.Stat(indexfile); os.IsNotExist(err) {
@@ -250,18 +259,8 @@ func CreateRestorePoint(file string, overwrite string) {
 			if werr != nil {
 				panic(werr)
 			}
-			strlist := OpenFile(file)
 
-			var m = make(map[int]string)
-
-			i := 0
-			for _, str := range strlist {
-				i++
-				m[i] = str
-			}
-			println("BACKING UP FILE: " + file)
-
-			BackFile(storename, file, m)
+			BackFile(storename, file, 1)
 		} else {
 			checkresult := ExistsInIndex(indexfile, file)
 			//do the checks if it already exists in the indexfile
@@ -274,6 +273,7 @@ func CreateRestorePoint(file string, overwrite string) {
 			//for all the storename completely as a layer of obfuscation.  Although
 			//if permissions are set correctly on the backup directory then it is
 			//slightly redundant.
+
 			if checkresult == "newback" {
 				//prompt user to overwrite
 
@@ -284,6 +284,7 @@ func CreateRestorePoint(file string, overwrite string) {
 
 				if overwrite == "y" {
 					println("Overwriting previous backup of :" + file)
+					OverWriteBackup(storename, file)
 				}
 
 				if overwrite == "" {
@@ -293,6 +294,7 @@ func CreateRestorePoint(file string, overwrite string) {
 					fmt.Scanln(&overwriteinput)
 					if overwriteinput == "y" {
 						println("Overwriting previous backup of :" + file)
+						OverWriteBackup(storename, file)
 					} else {
 						println("Exiting")
 						os.Exit(0)
@@ -304,20 +306,10 @@ func CreateRestorePoint(file string, overwrite string) {
 				s1 := rand.NewSource(time.Now().UnixNano())
 				r1 := rand.New(s1)
 				storename = storename + "-" + strconv.Itoa(r1.Intn(100))
-				println(storename)
 
-				strlist := OpenFile(file)
-
-				var m = make(map[int]string)
-
-				i := 0
-				for _, str := range strlist {
-					i++
-					m[i] = str
-				}
 				println("BACKING UP FILE: " + file)
 
-				BackFile(storename, file, m)
+				BackFile(storename, file, 1)
 				//PostToServ(m)
 			} else if checkresult == "new" {
 				appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
@@ -328,26 +320,16 @@ func CreateRestorePoint(file string, overwrite string) {
 				appendfile.WriteString(indexstr)
 				defer appendfile.Close()
 
-				strlist := OpenFile(file)
-
-				var m = make(map[int]string)
-
-				i := 0
-				for _, str := range strlist {
-					i++
-					m[i] = str
-				}
 				println("BACKING UP FILE: " + file)
 
-				BackFile(storename, file, m)
+				BackFile(storename, file, 1)
 				//PostToServ(m)
 			}
 		}
 	}
 }
 
-func RestoreController(i int, file string, overwrite string) {
-	indexfile := "/opt/memento/index.safe"
+func RestoreController(file string, overwrite string) {
 	dirforbackups := "/opt/memento"
 	if _, err := os.Stat(dirforbackups); err != nil {
 		if os.IsNotExist(err) {
@@ -357,55 +339,11 @@ func RestoreController(i int, file string, overwrite string) {
 		}
 	}
 
-	switch i {
-	case 1:
+	filecheckstats := CheckFile(file)
+	if filecheckstats.size != 0 {
 		CreateRestorePoint(file, overwrite)
-	case 2:
-		//index file logic
-		stats := CheckFile(file)
-		println(stats.time)
-		strlist := OpenFile(indexfile)
-
-		for _, str := range strlist {
-			strpre := str
-			tex := strings.Split(strpre, "-:-")
-			if tex[0] == file {
-				println("file found in index file: " + tex[0])
-				if tex[2] != stats.time {
-					println("file:" + tex[0] + " MODIFIED")
-					backupfile := dirforbackups + "/" + tex[1] + ".txt"
-					println(backupfile)
-					statsback := CheckFile(backupfile)
-					if statsback.size != 0 {
-						/*
-							Gets contents of the file's present location. tex[0].
-							Transfer the contents into a [int]string map called m.
-							Pass this to VerifyFile.  VerifyFile compares the new
-							interface with the saved json file at /opt/memento.
-						*/
-						packlist := OpenFile(backupfile)
-						var m = make(map[int]string)
-
-						i := 0
-						for _, pack := range packlist {
-							m[i] = pack
-							i++
-						}
-						VerifyFile(file, m)
-					}
-				} else {
-					println("file:" + tex[0] + " NOT MODIFIED")
-					println("\n\n" + "NO ACTION TAKEN")
-				}
-			}
-		}
-
-	case 3:
-		strlist := OpenFile(file)
-		for _, str := range strlist {
-			//do concurrent shit
-			println(str)
-		}
+	} else {
+		println("Nothing to backup (ツ)_/¯")
 	}
 }
 
@@ -425,13 +363,38 @@ func GetHistFile(username string, shellname string, homedir string) string {
 	return "shell not found"
 }
 
-func GetUserInfo() uinfo {
-	var expr = regexp.MustCompile(`sh$`)
-
+func GetUserInfo(mode int) uinfo {
 	strlist := OpenFile("/etc/passwd")
-	for _, str := range strlist {
-		//Does user have a default shell?
-		if expr.MatchString(str) {
+	if mode == 1 {
+		var expr = regexp.MustCompile(`sh$`)
+
+		for _, str := range strlist {
+			//Does user have a default shell?
+			if expr.MatchString(str) {
+				strsplit := strings.Split(str, ":")
+				username := strsplit[0]
+				userid := strsplit[2]
+				groupid := strsplit[3]
+				homedir := strsplit[5]
+				shell := strsplit[6]
+				shellsplit := strings.Split(shell, "/")
+				shellname := shellsplit[len(shellsplit)-1]
+
+				shellpathfull := GetHistFile(username, shellname, homedir)
+
+				u := uinfo{
+					username:  username,
+					userid:    userid,
+					groupid:   groupid,
+					homedir:   homedir,
+					shellpath: shellpathfull,
+				}
+				return u
+			}
+		}
+	} else if mode == 2 {
+		for _, str := range strlist {
+			//Does user have a default shell?
 			strsplit := strings.Split(str, ":")
 			username := strsplit[0]
 			userid := strsplit[2]
@@ -454,15 +417,27 @@ func GetUserInfo() uinfo {
 		}
 	}
 	return uinfo{}
+
 }
 
 func CheckFile(name string) finfo {
-	fileInfo, err := os.Stat(name)
+	fileInfo, _ := os.Stat(name)
+	f, err := os.Open(name)
+	if err != nil {
+		panic(err)
+	}
 	if err != nil {
 		if os.IsNotExist(err) {
 			println("file not found:", fileInfo.Name())
 		}
 	}
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		panic(err)
+	}
+	hash := h.Sum(nil)
+	Enc := base64.StdEncoding.EncodeToString(hash)
+
 	t := fileInfo.ModTime().String()
 	b := fileInfo.Size()
 
@@ -470,8 +445,24 @@ func CheckFile(name string) finfo {
 		name: name,
 		size: b,
 		time: t,
+		hash: Enc,
 	}
 	return i
+}
+
+func ArtifactHunt() {
+	/*
+		to be run after FindDeviousCmd returns positive.
+		scans file system for interesting artifacts. Like a ssh key being added to
+		AuthorizedKeys file.
+		Analyze Cron as well
+
+		One idea might be taking the process id of the maliscious cmd and then listing
+		open files.  Analyze the open files for interesting artifacts.
+
+
+	*/
+
 }
 
 func FindDeviousCmd(cmd string) string {
@@ -517,11 +508,9 @@ func FindDeviousCmd(cmd string) string {
 }
 
 func cmdhist() {
-	user := GetUserInfo()
+	user := GetUserInfo(1)
 	strlist := OpenFile(user.shellpath)
-	i := 0
 	for _, str := range strlist {
-		i++
 		cmd := FindDeviousCmd(str)
 		if cmd != "no" {
 			println(cmd)
@@ -529,14 +518,202 @@ func cmdhist() {
 	}
 }
 
+func LogGuardian() {
+	/*
+		Parse logs for maliscious activity, also check for log tampering.
+		/var/log/wtmp
+		/var/log/lastlog
+		/var/log/btmp
+		/var/log/utmp
+		/var/log/*
+
+		Check logs overwritten by Zero Bytes. Obvious sign of log tampering.
+		date time modificiation date of all logs are identical.
+		Null Erased logins.
+
+		probably should also check file permissions for all the logs
+
+		Method to read log files:
+		https://stackoverflow.com/questions/17863821/how-to-read-last-lines-from-a-big-file-with-go-every-10-secs
+	*/
+
+	dirgrab, err := os.ReadDir("/proc")
+	if err != nil {
+		panic(err)
+	}
+	for _, dir := range dirgrab {
+		switch dir.Name() {
+		case "apache2":
+			//develop regex from requests lists developed from old apache server logs
+		}
+	}
+}
+
+func GetExeLink(pid string) string {
+	//exe link
+	patternforDeleted := regexp.MustCompile(`(deleted)`)
+
+	exelink, err := os.Readlink(path.Join("/proc", pid, "exe"))
+	if err != nil {
+		return "Kernel Process"
+	}
+	//return to this later to see if this actually works lmao
+	if patternforDeleted.MatchString(exelink) {
+		return "deleted"
+	}
+	return exelink
+}
+
+func GetCmdLine(pid string) string {
+	//cmdline
+	cmdline, err := os.ReadFile(path.Join("/proc", pid, "cmdline"))
+	if err != nil {
+		return "no cmdline"
+	}
+	if len(cmdline) == 0 {
+		return "no cmdline"
+	}
+	return string(cmdline)
+}
+
+func GetCWD(pid string) string {
+	//cwd
+	cwd, err := os.Readlink(path.Join("/proc", pid, "cwd"))
+	if err != nil {
+		return "no cwd"
+	}
+	return cwd
+}
+
+func GetLoginUID(pid string) string {
+	//loginuid
+	loginuid, err := os.ReadFile(path.Join("/proc", pid, "loginuid"))
+	if err != nil {
+		return "no loginuid"
+	}
+	return string(loginuid)
+}
+
+func GetProcSnapShot() {
+	dirgrab, err := os.ReadDir("/proc")
+	if err != nil {
+		panic(err)
+	}
+
+	patternforPID := regexp.MustCompile(`^[0-9]*$`)
+
+	ptmp := Proc{
+		Pid: "tmp",
+		bin: "tmp",
+		cmd: "tmp",
+		CWD: "tmp",
+		uid: "tmp",
+	}
+
+	var ProcSnap = []Proc{
+		ptmp,
+	}
+
+	for _, entry := range dirgrab {
+		if patternforPID.MatchString(entry.Name()) {
+			println(entry.Name())
+
+			exelink := GetExeLink(entry.Name())
+			cmdline := GetCmdLine(entry.Name())
+			cwdlink := GetCWD(entry.Name())
+			loginuid := GetLoginUID(entry.Name())
+
+			p := Proc{
+				Pid: entry.Name(),
+				bin: exelink,
+				cmd: cmdline,
+				CWD: cwdlink,
+				uid: loginuid,
+			}
+
+			ProcSnap = append(ProcSnap, p)
+
+			//println("exe link: " + exelink)
+			//println("cwd link: " + cwdlink)
+			//println("cmdline: " + cmdline)
+			//println("loginuid: " + loginuid)
+			//println("<------------------------------>")
+		}
+	}
+	//Detect process to flag and return a single struct?
+	/*
+		idk figure out this part, something to do with matching IOCs and then
+		sending the struct to a different function that will investigate open files
+		and other things.
+		for _, p := range ProcSnap {
+
+			if p.bin == "deleted" {
+			}
+			if p.CWD == "/tmp" || p.CWD == "/dev" {
+
+			}
+			intuid, err := strconv.Atoi(p.uid)
+			if err != nil {
+				println("error converting uid to int")
+			}
+			if intuid > 0 && intuid < 1000 {
+
+			}
+
+			println(p.Pid)
+			println(p.bin)
+			println(p.cmd)
+			println(p.CWD)
+			println(p.uid)
+			println("<------------------------------>")
+
+
+
+		}
+	*/
+}
+
+func ProcMon() {
+	/*
+		So we are looking for indicators of compromise derived from processes.
+		Checklist for things to check:
+			- System/Service users running shells. (pretty sus if www-data has a bash
+				shell spawned from apache)
+			- /proc investigations, where exe shows (deleted) or similar path. Which
+				is a tell of fileless malware.  A popular techniqure nowadays.
+			- binary running from /tmp or a list of sus directories
+			- binaries named '.' or '//' or ' '
+			- immutable binaries/hidden binaries
+
+
+		Stuff we wanna get from /proc
+			- /proc/<pid>/exe to see if its a symlink for a deleted file.
+			- /proc/<pid>/cwd to see if its in tmp or a sus dir.
+			- /proc/<pid>/cmdline to see if its a binary with a name of '.' or '//' or ' ' and also any sus commands
+			- /proc/<pid>/loginuid to grab user.
+
+	*/
+	GetProcSnapShot()
+	//users := GetUserInfo(2)
+
+}
+
 func EstablishPersistence() {
 	/*
-		Make go cronjobs so that the program can be run intially to set up config,
-		then forgot about.
+		Establish cronjob for now, maybe look into getting some type of systemd service?
 	*/
 	c := cron.New()
 	c.AddFunc("@every 2m", cmdhist)
+	c.AddFunc("@every 2m", VerifyFiles)
 	c.Start()
+}
+
+func VerifiyRunIntegrity() {
+	/*
+		Function run every ? minutes to verify the integrity of the EDR solution.
+		So are file permissions correct??
+	*/
+
 }
 
 func usage() {
@@ -551,16 +728,13 @@ func usage() {
 
 /*
 stuff to do:
-	- Flesh out EstablishPersistence()
-	- Create VerifyFiles() function instead of VerifyFile()
-	-- Why not kill all the birds with one stone?
-	-- Also CheckFile() should capture the hash in addition to the other stats.
-	-- This way VerifyFiles() can compute the hash at runtime and compare it to
-	-- a hash stored in index.safe.
+	- Flesh out EstablishPersistence() | ✓
+	- Create VerifyFiles() function instead of VerifyFile() | ✓
+	-- Also CheckFile() should capture the hash in addition to the other stats. | ✓
 	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
 	-- but stores it as "example.txt.txt" in /opt/memento.
 	- Finish cmdhist()
-	- Add process monitoring
+	- Add process monitoring | ✓ (sorta)
 	-- Investigate /proc for "interesting" artifacts
 	-- Interrogate new processes, especially subprocesses that contain network capabilities
 	-- maybe layer this ability with cmdhist()
@@ -586,7 +760,6 @@ func main() {
 	var (
 		mode      int
 		file      string
-		filemode  int
 		overwrite string
 	)
 
@@ -600,7 +773,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 && mode != 2 && mode != 3 {
+	if mode != 1 && mode != 2 && mode != 3 && mode != 4 {
 		usage()
 		os.Exit(1)
 	}
@@ -612,8 +785,10 @@ func main() {
 			usage()
 			os.Exit(1)
 		}
-		RestoreController(filemode, file, overwrite)
+		RestoreController(file, overwrite)
 	} else if mode == 3 {
 		VerifyFiles()
+	} else if mode == 4 {
+		ProcMon()
 	}
 }
