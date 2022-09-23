@@ -1,4 +1,4 @@
 github.com/robfig/cron v1.2.0 h1:ZjScXvvxeQ63Dbyxy76Fj3AT3Ut0aKsyd2/tl3DTMuQ=
 github.com/robfig/cron v1.2.0/go.mod h1:JGuDeoQd7Z6yL4zQhZ3OPEVHB7fL6Ka6skscFHfmt2k=
-github.com/udhos/equalfile v0.3.0 h1:KhG4xhhkittrgIV/ekHtpEPh7MLxtbjm6kLEwp5Dlbg=
-github.com/udhos/equalfile v0.3.0/go.mod h1:1LOX9HjdFMke7ryP3IPby09FkswyY5KzhhsT37wLz/Y=
+github.com/weaveworks/procspy v0.0.0-20150706124340-cb970aa190c3 h1:UC4iN/yCDCObTBhKzo34/R2U6qptTPmqbzG6UiQVMUQ=
+github.com/weaveworks/procspy v0.0.0-20150706124340-cb970aa190c3/go.mod h1:cJTfuBcxkdbj8Mabk4PPdaf0AXv9TYEJmkFxKcWxYY4=

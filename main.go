@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/robfig/cron"
+	"github.com/weaveworks/procspy"
 )
 
 type finfo struct {
@@ -47,7 +48,7 @@ type Proc struct {
 	cmd string
 	bin string
 	CWD string
-	uid string
+	uid int
 }
 
 func PostToServ(m map[int]string) {
@@ -537,16 +538,44 @@ func LogGuardian() {
 		https://stackoverflow.com/questions/17863821/how-to-read-last-lines-from-a-big-file-with-go-every-10-secs
 	*/
 
-	dirgrab, err := os.ReadDir("/proc")
-	if err != nil {
-		panic(err)
-	}
-	for _, dir := range dirgrab {
-		switch dir.Name() {
-		case "apache2":
-			//develop regex from requests lists developed from old apache server logs
+	/*
+		dirgrab, err := os.ReadDir("/var/log")
+		if err != nil {
+			panic(err)
 		}
-	}
+		for _, dir := range dirgrab {
+			switch dir.Name() {
+			case "apache2":
+				//pattern for scans
+				PatternforScannerz := regexp.MustCompile(`[nN]map|masscan|curl|[gG]o-http-client`)
+				PatternforShellshock := regexp.MustCompile(``)
+				PatternforWebshell := regexp.MustCompile(``)
+
+				//develop regex from requests lists developed from old apache server logs
+
+					something for:
+					cgi-bin
+					cmd=
+					shell
+					jndi for log4j
+
+					CONNECT request
+
+					start of tls handshake
+					\x16\x03\x01
+
+
+			case "auth.log":
+
+					monitor accepted publickeys for sshd
+					and password auth
+
+					bruteforce attempts? eh just install fail2ban
+
+
+			}
+		}
+	*/
 }
 
 func GetExeLink(pid string) string {
@@ -594,7 +623,20 @@ func GetLoginUID(pid string) string {
 	return string(loginuid)
 }
 
-func GetProcSnapShot() {
+func GetNetworkSurfing() {
+	lookupProcesses := true
+	cs, err := procspy.Connections(lookupProcesses)
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Printf("TCP Connections:\n")
+	for c := cs.Next(); c != nil; c = cs.Next() {
+		fmt.Printf(" - %v\n", c)
+	}
+}
+
+func GetProcSnapShot() []Proc {
 	dirgrab, err := os.ReadDir("/proc")
 	if err != nil {
 		panic(err)
@@ -607,7 +649,7 @@ func GetProcSnapShot() {
 		bin: "tmp",
 		cmd: "tmp",
 		CWD: "tmp",
-		uid: "tmp",
+		uid: 20000,
 	}
 
 	var ProcSnap = []Proc{
@@ -616,61 +658,33 @@ func GetProcSnapShot() {
 
 	for _, entry := range dirgrab {
 		if patternforPID.MatchString(entry.Name()) {
-			println(entry.Name())
-
 			exelink := GetExeLink(entry.Name())
+			loginuid := GetLoginUID(entry.Name())
+			uid, err := strconv.Atoi(loginuid)
+			if err != nil {
+				panic(err)
+			}
+			//whitelisting system processes
+			if exelink == "Kernel Process" {
+				continue
+			} else if uid > 2000 {
+				continue
+			}
+
 			cmdline := GetCmdLine(entry.Name())
 			cwdlink := GetCWD(entry.Name())
-			loginuid := GetLoginUID(entry.Name())
 
 			p := Proc{
 				Pid: entry.Name(),
 				bin: exelink,
 				cmd: cmdline,
 				CWD: cwdlink,
-				uid: loginuid,
+				uid: uid,
 			}
-
 			ProcSnap = append(ProcSnap, p)
-
-			//println("exe link: " + exelink)
-			//println("cwd link: " + cwdlink)
-			//println("cmdline: " + cmdline)
-			//println("loginuid: " + loginuid)
-			//println("<------------------------------>")
 		}
 	}
-	//Detect process to flag and return a single struct?
-	/*
-		idk figure out this part, something to do with matching IOCs and then
-		sending the struct to a different function that will investigate open files
-		and other things.
-		for _, p := range ProcSnap {
-
-			if p.bin == "deleted" {
-			}
-			if p.CWD == "/tmp" || p.CWD == "/dev" {
-
-			}
-			intuid, err := strconv.Atoi(p.uid)
-			if err != nil {
-				println("error converting uid to int")
-			}
-			if intuid > 0 && intuid < 1000 {
-
-			}
-
-			println(p.Pid)
-			println(p.bin)
-			println(p.cmd)
-			println(p.CWD)
-			println(p.uid)
-			println("<------------------------------>")
-
-
-
-		}
-	*/
+	return ProcSnap
 }
 
 func ProcMon() {
@@ -685,17 +699,39 @@ func ProcMon() {
 			- binaries named '.' or '//' or ' '
 			- immutable binaries/hidden binaries
 
-
-		Stuff we wanna get from /proc
-			- /proc/<pid>/exe to see if its a symlink for a deleted file.
-			- /proc/<pid>/cwd to see if its in tmp or a sus dir.
-			- /proc/<pid>/cmdline to see if its a binary with a name of '.' or '//' or ' ' and also any sus commands
-			- /proc/<pid>/loginuid to grab user.
-
+		Steps to take after sus binary is found:
+			- Log user information?
+			- Raise alert?
+		Actual flow for this, send to function InvestigateProc() which will do further analysis with the cmdhist and other
+		shit prob.  Then if it passes that send to RaiseProcAlert() which will dump memory of the process, kill it, and then
+		send an alert to the user.
 	*/
-	GetProcSnapShot()
-	//users := GetUserInfo(2)
+	ProcSnap := GetProcSnapShot()
+	for _, p := range ProcSnap {
+		patternforDeleted := regexp.MustCompile(`deleted`)
+		patternforSystemUserBin := regexp.MustCompile(`bash|sh|.php$|base64|nc|ncat|shell|^python|telnet|ruby`)
 
+		if patternforDeleted.MatchString(p.bin) {
+			fmt.Println("deleted binary found")
+		}
+
+		if p.CWD == "/tmp" || p.CWD == "/dev" {
+			//proc running from a sus dir
+			fmt.Println("proc running from a sus dir")
+		}
+
+		if p.uid > 0 && p.uid < 1000 {
+			//system user running a process
+			fmt.Println("system user running a process")
+			if patternforSystemUserBin.MatchString(p.bin) {
+				fmt.Println("system user running a shell")
+			}
+		}
+
+		if p.cmd == "." || p.cmd == "//" || p.cmd == " " {
+			fmt.Println("binary named '.' or '//' or ' '")
+		}
+	}
 }
 
 func EstablishPersistence() {
@@ -721,34 +757,55 @@ func usage() {
 	fmt.Printf("Options:\n")
 	flag.PrintDefaults()
 	println("\nExamples ->")
-	println("\t./gomemento --mode=1")
-	println("\t./gomemento --mode=2 --file=/etc/passwd --filemode=1 --overwrite=y")
+	println("\n\tCMD HISTORY CHECK:")
+	println("\t\t./gomemento --mode=1")
+	println("\n\n\tFILE BACK STUFF:")
+	println("\t\t./gomemento --mode=2 --file=/etc/passwd")
+	println("\t\t./gomemento --mode=2 --file=/etc/passwd --overwrite=y")
+	println("\t\t./gomemento --mode=3")
+	println("\n\n\tProcess check:")
+	println("\t\t./gomemento --mode=4")
 	println("\n")
 }
 
 /*
 stuff to do:
 	- Flesh out EstablishPersistence() | ✓
+	-- Add systemd service with loggin set as rsyslog
 	- Create VerifyFiles() function instead of VerifyFile() | ✓
 	-- Also CheckFile() should capture the hash in addition to the other stats. | ✓
+
 	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
 	-- but stores it as "example.txt.txt" in /opt/memento.
+
 	- Finish cmdhist()
+
 	- Add process monitoring | ✓ (sorta)
 	-- Investigate /proc for "interesting" artifacts
 	-- Interrogate new processes, especially subprocesses that contain network capabilities
 	-- maybe layer this ability with cmdhist()
 	- Add Logging in /opt/memento/logs/
+
 	- Network mapper
 	-- Based on network connections over time, create a network profile for the host
 	-- Once the network profile is created and has a solid baseline, anomalies can
 	-- be detected.  The anomalies under extra scrutiny can be analyzed for easy
 	-- detection of maliscious activity.
 
+	- Add support for limited yara rules for detecting general things like use
+	-- of cobolt strike or exploit kits.  A lot of yara rules seems to be focused
+	-- on specific malware or specific threat actors. Better to focus for general
+	-- because we dont have threat data on threat actors in CCDC.
+
 	- All these things once developed can be aggregated by the scripting engine.
 	-- One end goal beyond have a fun interface with a bunch of datapoints organized
 	-- by host is to manufacture CTI in real time.  Blacklist users, block IPs, etc.
 	-- Even categorize TTPs.
+
+	- Would be nice section
+	-- Figure out a nice way to take advantage of concurrency. Maybe have a
+	-- task scheduler of sorts that takes all possible tasks and runs them
+	-- with go routines
 */
 
 func main() {
@@ -764,7 +821,7 @@ func main() {
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
-	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files")
+	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files, 4 = process check")
 	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup [y/n]")
 	flag.Parse()
 
@@ -773,7 +830,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 && mode != 2 && mode != 3 && mode != 4 {
+	if mode != 1 && mode != 2 && mode != 3 && mode != 4 && mode != 5 {
 		usage()
 		os.Exit(1)
 	}
@@ -790,5 +847,7 @@ func main() {
 		VerifyFiles()
 	} else if mode == 4 {
 		ProcMon()
+	} else if mode == 5 {
+		GetNetworkSurfing()
 	}
 }
