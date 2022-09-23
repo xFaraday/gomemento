@@ -354,6 +354,9 @@ func GetHistFile(username string, shellname string, homedir string) string {
 	case shellname == "bash" || shellname == "sh":
 		shellpathfull := homedir + "/.bash_history"
 		return shellpathfull
+	case shellname == "ash":
+		shellpathfull := homedir + "/.ash_history"
+		return shellpathfull
 	case shellname == "zsh":
 		shellpathfull := homedir + "/.zsh_history"
 		return shellpathfull
