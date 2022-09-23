@@ -716,11 +716,17 @@ func ProcMon() {
 
 		if patternforDeleted.MatchString(p.bin) {
 			fmt.Println("deleted binary found")
+			println("sus dir: " + p.CWD)
+			println("sus pid: " + p.Pid)
+			println("sus bin: " + p.bin)
 		}
 
 		if p.CWD == "/tmp" || p.CWD == "/dev" {
 			//proc running from a sus dir
 			fmt.Println("proc running from a sus dir")
+			println("sus dir: " + p.CWD)
+			println("sus pid: " + p.Pid)
+			println("sus bin: " + p.bin)
 		}
 
 		if p.uid > 0 && p.uid < 1000 {
@@ -777,6 +783,10 @@ stuff to do:
 	-- Add systemd service with loggin set as rsyslog
 	- Create VerifyFiles() function instead of VerifyFile() | ✓
 	-- Also CheckFile() should capture the hash in addition to the other stats. | ✓
+
+	-- add linux command "stat" functionality, that is when a file was modified
+	-- to check if it was a good user or a bad boy or unknown boy
+	-- IMPORTANT, ADD FUNCTIONALITY TO BACK ENTIRE DIRECTORIES
 
 	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
 	-- but stores it as "example.txt.txt" in /opt/memento.
