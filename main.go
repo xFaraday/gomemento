@@ -18,6 +18,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/robfig/cron"
@@ -633,9 +634,23 @@ func GetNetworkSurfing() {
 		panic(err)
 	}
 
-	fmt.Printf("TCP Connections:\n")
 	for c := cs.Next(); c != nil; c = cs.Next() {
-		fmt.Printf(" - %v\n", c)
+		pid := strconv.Itoa(int(c.PID))
+		lport := strconv.Itoa(int(c.LocalPort))
+
+		println("<------------------------->")
+		println("Proc Name: " + c.Name)
+		println("PID: " + pid)
+		println("Local Address: " + c.LocalAddress.String())
+		println("Remote Address: " + c.RemoteAddress.String())
+		println("LocalPort: " + lport)
+		println("<------------------------->")
+		//add to networkprof.safe file for later use and analysis
+		//was thinking local address:localport-:-remote address-:-ProcName-:-PID-:-Counter
+		//although maybe this isnt the best format to store data like this?
+		//Because the main thing to watch here is the outgoing address and port,
+		//maybe analysis beyond stats on PID, ProcName could yeild more insight
+		//into the nature of the program.
 	}
 }
 
@@ -690,6 +705,42 @@ func GetProcSnapShot() []Proc {
 	return ProcSnap
 }
 
+func SysTrace(p Proc) {
+
+	/*
+		reform to include mapping and categorization of bad syscalls,
+		and make it prettier.  Also needs a remidian function.
+		Maybe dump memory and kill the process?
+	*/
+
+	regs2 := &syscall.PtraceRegs{}
+	pid, err := strconv.Atoi(p.Pid)
+	if err != nil {
+		panic(err)
+	}
+
+	println(syscall.PtraceGetRegs(pid, regs2))
+
+	var wopt syscall.WaitStatus
+	regs1 := &syscall.PtraceRegs{}
+	for regs1 != nil && regs1.Orig_rax != 1 {
+		syscall.PtraceSyscall(pid, 0)
+		syscall.Wait4(pid, &wopt, 0, nil)
+		println(syscall.PtraceGetRegs(pid, regs1))
+		println(regs1.Orig_rax)
+		if regs1.Orig_rax == 1 {
+			fmt.Printf("%v\n", regs1)
+			out := make([]byte, int(regs1.Rdx))
+			syscall.PtracePeekData(pid, uintptr(regs1.Rsi), out)
+			println("Data: ", string(out))
+		}
+		syscall.PtraceSyscall(pid, 0)
+		syscall.Wait4(pid, &wopt, 0, nil)
+	}
+	syscall.PtraceSyscall(pid, 0)
+	syscall.Wait4(pid, &wopt, 0, nil)
+}
+
 func ProcMon() {
 	/*
 		So we are looking for indicators of compromise derived from processes.
@@ -719,6 +770,7 @@ func ProcMon() {
 			println("sus dir: " + p.CWD)
 			println("sus pid: " + p.Pid)
 			println("sus bin: " + p.bin)
+			SysTrace(p)
 		}
 
 		if p.CWD == "/tmp" || p.CWD == "/dev" {
@@ -727,6 +779,7 @@ func ProcMon() {
 			println("sus dir: " + p.CWD)
 			println("sus pid: " + p.Pid)
 			println("sus bin: " + p.bin)
+			SysTrace(p)
 		}
 
 		if p.uid > 0 && p.uid < 1000 {
@@ -734,11 +787,13 @@ func ProcMon() {
 			fmt.Println("system user running a process")
 			if patternforSystemUserBin.MatchString(p.bin) {
 				fmt.Println("system user running a shell")
+				SysTrace(p)
 			}
 		}
 
 		if p.cmd == "." || p.cmd == "//" || p.cmd == " " {
 			fmt.Println("binary named '.' or '//' or ' '")
+			SysTrace(p)
 		}
 	}
 }
