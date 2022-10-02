@@ -10,7 +10,9 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"math/rand"
+	"net"
 	"net/http"
 	"os"
 	"os/exec"
@@ -52,6 +54,10 @@ type Proc struct {
 	uid int
 }
 
+type Beat struct {
+	IP string
+}
+
 func PostToServ(m map[int]string) {
 	//post files to web server
 
@@ -73,6 +79,36 @@ func PostToServ(m map[int]string) {
 	}
 
 	resp, err := http.Post("http://localhost:80", "application/json", bytes.NewBuffer(jsonStr))
+
+	if err != nil {
+		panic(err)
+	} else {
+		println(resp.Status)
+	}
+
+	defer resp.Body.Close()
+}
+
+func GetIP() string {
+	conn, err := net.Dial("udp", "8.8.8.8:80")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer conn.Close()
+
+	localAddr := conn.LocalAddr().(*net.UDPAddr)
+
+	ipaddr := localAddr.IP
+	return ipaddr.String()
+}
+
+func HeartBeat() {
+	m := Beat{IP: GetIP()}
+	jsonStr, err := json.Marshal(m)
+	if err != nil {
+		panic(err)
+	}
+	resp, err := http.Post("http://localhost:80/heartbeat", "application/json", bytes.NewBuffer(jsonStr))
 
 	if err != nil {
 		panic(err)
@@ -627,31 +663,87 @@ func GetLoginUID(pid string) string {
 	return string(loginuid)
 }
 
+func UpdateNetworkIndex(constore []string) {
+	networkfile := "/opt/memento/networkprof.safe"
+	stats := CheckFile(networkfile)
+	if stats.size == 0 {
+		file, err := os.OpenFile(networkfile, os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			panic(err)
+		}
+		defer file.Close()
+		for _, str := range constore {
+			file.WriteString(str)
+		}
+	}
+	//add other logic to analyze the networkprof.safe file against constore and update it
+}
+
+func AnalyzeNetworkConnsPre(constore []string) {
+	//network connections
+	//localIP:localPort-:-remoteIP:remotePort-:-protocol-:-state-:-pid-:-processname-:-exactcounter-:-sameRemoteIPCounter-:-sameLocalIPCounter
+	//
+	for i := 0; i < len(constore); i++ {
+		a := i + 1
+		isplit := strings.Split(constore[i], "-:-")
+		for j := a; j < len(constore); j++ {
+			jsplit := strings.Split(constore[j], "-:-")
+			if isplit[0] == jsplit[0] &&
+				isplit[2] == jsplit[2] &&
+				isplit[3] == jsplit[3] {
+				num := isplit[6]
+				numint, _ := strconv.Atoi(num)
+				numint++
+				num = strconv.Itoa(numint)
+				constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + num + "-:-" + isplit[7] + "-:-" + isplit[8] + "\n"
+			} else if isplit[2] == jsplit[2] &&
+				isplit[3] == jsplit[3] {
+				num := isplit[7]
+				numint, _ := strconv.Atoi(num)
+				numint++
+				num = strconv.Itoa(numint)
+				constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + isplit[6] + "-:-" + num + "-:-" + isplit[8] + "\n"
+			} else if isplit[0] == jsplit[0] &&
+				isplit[1] == jsplit[1] {
+				num := isplit[8]
+				numint, _ := strconv.Atoi(num)
+				numint++
+				num = strconv.Itoa(numint)
+				//rewrite file
+				constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + isplit[6] + "-:-" + isplit[7] + "-:-" + num + "\n"
+			}
+		}
+	}
+	//print out
+	for _, str := range constore {
+		print(str)
+	}
+
+	UpdateNetworkIndex(constore)
+}
+
 func GetNetworkSurfing() {
 	lookupProcesses := true
 	cs, err := procspy.Connections(lookupProcesses)
 	if err != nil {
 		panic(err)
 	}
-
-	for c := cs.Next(); c != nil; c = cs.Next() {
-		pid := strconv.Itoa(int(c.PID))
-		lport := strconv.Itoa(int(c.LocalPort))
-
-		println("<------------------------->")
-		println("Proc Name: " + c.Name)
-		println("PID: " + pid)
-		println("Local Address: " + c.LocalAddress.String())
-		println("Remote Address: " + c.RemoteAddress.String())
-		println("LocalPort: " + lport)
-		println("<------------------------->")
-		//add to networkprof.safe file for later use and analysis
-		//was thinking local address:localport-:-remote address-:-ProcName-:-PID-:-Counter
-		//although maybe this isnt the best format to store data like this?
-		//Because the main thing to watch here is the outgoing address and port,
-		//maybe analysis beyond stats on PID, ProcName could yeild more insight
-		//into the nature of the program.
+	networkfile := "/opt/memento/networkprof.safe"
+	if _, err := os.Stat(networkfile); os.IsNotExist(err) {
+		//create file
+		file, err := os.OpenFile(networkfile, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
+		if err != nil {
+			log.Fatal(err)
+		}
+		defer file.Close()
 	}
+
+	var constore []string
+	for c := cs.Next(); c != nil; c = cs.Next() {
+		newindexstr := c.LocalAddress.String() + "-:-" + strconv.Itoa(int(c.LocalPort)) + "-:-" + c.RemoteAddress.String() + "-:-" + strconv.Itoa(int(c.RemotePort)) + "-:-" + c.Name + "-:-" + strconv.Itoa(int(c.PID)) + "-:-" + "1" + "-:-" + "1" + "-:-" + "1" + "\n"
+		constore = append(constore, newindexstr)
+	}
+	AnalyzeNetworkConnsPre(constore)
 }
 
 func GetProcSnapShot() []Proc {
