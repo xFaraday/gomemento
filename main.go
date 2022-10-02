@@ -58,6 +58,19 @@ type Beat struct {
 	IP string
 }
 
+type incident struct {
+	Name     string
+	User     string
+	Process  string
+	RemoteIP string
+	Cmd      string
+}
+
+type alert struct {
+	Host     string
+	Incident incident
+}
+
 func PostToServ(m map[int]string) {
 	//post files to web server
 
