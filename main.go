@@ -23,6 +23,8 @@ import (
 	"syscall"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/robfig/cron"
 	"github.com/weaveworks/procspy"
 )
@@ -69,6 +71,12 @@ type incident struct {
 type alert struct {
 	Host     string
 	Incident incident
+}
+
+type model struct {
+	Tabs       []string
+	TabContent []string
+	activeTab  int
 }
 
 func PostToServ(m map[int]string) {
@@ -921,6 +929,114 @@ func VerifiyRunIntegrity() {
 
 }
 
+/*
+############################################################
+#                                                          #
+#                                                          #
+#                    interface shit                        #
+#                                                          #
+#                                                          #
+############################################################
+*/
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch keypress := msg.String(); keypress {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		case "right", "l", "n", "tab":
+			m.activeTab = min(m.activeTab+1, len(m.Tabs)-1)
+			return m, nil
+		case "left", "h", "p", "shift+tab":
+			m.activeTab = max(m.activeTab-1, 0)
+			return m, nil
+		}
+	}
+
+	return m, nil
+}
+
+func tabBorderWithBottom(left, middle, right string) lipgloss.Border {
+	border := lipgloss.RoundedBorder()
+	border.BottomLeft = left
+	border.Bottom = middle
+	border.BottomRight = right
+	return border
+}
+
+func (m model) View() string {
+	doc := strings.Builder{}
+
+	var renderedTabs []string
+
+	for i, t := range m.Tabs {
+		var style lipgloss.Style
+		isFirst, isLast, isActive := i == 0, i == len(m.Tabs)-1, i == m.activeTab
+		if isActive {
+			style = activeTabStyle.Copy()
+		} else {
+			style = inactiveTabStyle.Copy()
+		}
+		border, _, _, _, _ := style.GetBorder()
+		if isFirst && isActive {
+			border.BottomLeft = "│"
+		} else if isFirst && !isActive {
+			border.BottomLeft = "├"
+		} else if isLast && isActive {
+			border.BottomRight = "│"
+		} else if isLast && !isActive {
+			border.BottomRight = "┤"
+		}
+		style = style.Border(border)
+		renderedTabs = append(renderedTabs, style.Render(t))
+	}
+
+	row := lipgloss.JoinHorizontal(lipgloss.Top, renderedTabs...)
+	doc.WriteString(row)
+	doc.WriteString("\n")
+	doc.WriteString(windowStyle.Width((lipgloss.Width(row) - windowStyle.GetHorizontalFrameSize())).Render(m.TabContent[m.activeTab]))
+	return docStyle.Render(doc.String())
+}
+
+var (
+	defaultWidth      = 20
+	inactiveTabBorder = tabBorderWithBottom("┴", "─", "┴")
+	activeTabBorder   = tabBorderWithBottom("┘", " ", "└")
+	docStyle          = lipgloss.NewStyle().Padding(1, 2, 1, 2)
+	highlightColor    = lipgloss.AdaptiveColor{Light: "#874BFD", Dark: "#7D56F4"}
+	inactiveTabStyle  = lipgloss.NewStyle().Border(inactiveTabBorder, true).BorderForeground(highlightColor).Padding(0, 1)
+	activeTabStyle    = inactiveTabStyle.Copy().Border(activeTabBorder, true)
+	windowStyle       = lipgloss.NewStyle().BorderForeground(highlightColor).Padding(2, 0).Align(lipgloss.Center).Border(lipgloss.NormalBorder()).UnsetBorderTop()
+)
+
+func QuickInterface() {
+	tabs := []string{"Status", "Cmdhist", "Procmon", "Filemon", "Netmon", "Sysmon"}
+	tabContent := []string{"bruhhhh", "cmdhistbruh", "procmonbruh", "filemonbruh", "netmonbruh", "sysmonbruh"}
+	m := model{Tabs: tabs, TabContent: tabContent}
+	if err := tea.NewProgram(m).Start(); err != nil {
+		fmt.Println("error:", err)
+	}
+}
+
+func max(a, b int) int {
+	if a > b {
+		return a
+	}
+	return b
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
+}
+
 func usage() {
 	fmt.Printf("\nGoMemento Usage -> \n")
 	fmt.Printf("Options:\n")
@@ -1003,7 +1119,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 && mode != 2 && mode != 3 && mode != 4 && mode != 5 {
+	if mode != 1 && mode != 2 && mode != 3 && mode != 4 && mode != 5 && mode != 1337 {
 		usage()
 		os.Exit(1)
 	}
@@ -1022,5 +1138,7 @@ func main() {
 		ProcMon()
 	} else if mode == 5 {
 		GetNetworkSurfing()
+	} else if mode == 1337 {
+		QuickInterface()
 	}
 }
