@@ -1108,6 +1108,10 @@ stuff to do:
 	-- by host is to manufacture CTI in real time.  Blacklist users, block IPs, etc.
 	-- Even categorize TTPs.
 
+	- Add an alias to the bashrc files with ls -I /opt/gomemento so that any users
+	- would not be able to see the directory.  This would be a good way to hide
+	- the files we are generating.
+
 	- Would be nice section
 	-- Figure out a nice way to take advantage of concurrency. Maybe have a
 	-- task scheduler of sorts that takes all possible tasks and runs them
