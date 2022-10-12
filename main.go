@@ -425,6 +425,12 @@ func GetHistFile(username string, shellname string, homedir string) string {
 	return "shell not found"
 }
 
+func TrackUserLogin() {
+	//parse lastlog file or maybe perhaps the [a-z]tmp files
+	//https://github.com/akamajoris/lastlogparser
+	//take the file parsing out of this project, the rest of the functions are unncecessary
+}
+
 func GetUserInfo(mode int) uinfo {
 	strlist := OpenFile("/etc/passwd")
 	if mode == 1 {
@@ -1017,6 +1023,7 @@ var (
 func QuickInterface() {
 	tabs := []string{"Status", "Cmdhist", "Procmon", "Filemon", "Netmon", "Sysmon"}
 	tabContent := []string{"bruhhhh", "cmdhistbruh", "procmonbruh", "filemonbruh", "netmonbruh", "sysmonbruh"}
+
 	m := model{Tabs: tabs, TabContent: tabContent}
 	if err := tea.NewProgram(m).Start(); err != nil {
 		fmt.Println("error:", err)
@@ -1068,6 +1075,16 @@ stuff to do:
 	-- but stores it as "example.txt.txt" in /opt/memento.
 
 	- Finish cmdhist()
+
+	- Hella more user auditing
+	-- check for user last login, if a new login occurs then we should take appropriate actions
+	-- to monitor user activity
+	-- Avenues for monitoring user
+	--- check for processes spawned by that user
+	--- check for files created and access by that user
+	--- have history file saved and checked against new history file to see if anything has changed
+	---- https://askubuntu.com/questions/67283/is-it-possible-to-make-writing-to-bash-history-immediate
+	---- https://unix.stackexchange.com/questions/1055/how-to-make-bash-history-instantly-persistent
 
 	- Add process monitoring | ✓ (sorta)
 	-- Investigate /proc for "interesting" artifacts
