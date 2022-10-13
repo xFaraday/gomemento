@@ -1,5 +1,9 @@
 package main
 
+// #include <stdlib.h>
+// #include <pwd.h>
+import "C"
+
 import (
 	"bufio"
 	"bytes"
@@ -22,6 +26,9 @@ import (
 	"strings"
 	"syscall"
 	"time"
+	"unsafe"
+
+	"encoding/binary"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -42,6 +49,41 @@ type uinfo struct {
 	groupid   string
 	homedir   string
 	shellpath string
+}
+
+type Passwd struct {
+	Name    string
+	Passwd  string
+	Uid     uint32
+	Gid     uint32
+	Comment string
+	Home    string
+	Shell   string
+}
+
+func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
+	return &Passwd{
+		Name:    C.GoString(passwdC.pw_name),
+		Passwd:  C.GoString(passwdC.pw_passwd),
+		Uid:     uint32(passwdC.pw_uid),
+		Gid:     uint32(passwdC.pw_gid),
+		Comment: C.GoString(passwdC.pw_gecos),
+		Home:    C.GoString(passwdC.pw_dir),
+		Shell:   C.GoString(passwdC.pw_shell),
+	}
+}
+
+type record struct {
+	time int32
+	line [32]byte
+	host [256]byte
+}
+
+type UserInfo struct {
+	Name string
+	Line string
+	Host string
+	Last string
 }
 
 type ProcSnapshot struct {
@@ -425,10 +467,73 @@ func GetHistFile(username string, shellname string, homedir string) string {
 	return "shell not found"
 }
 
+var rsize = unsafe.Sizeof(record{})
+
 func TrackUserLogin() {
 	//parse lastlog file or maybe perhaps the [a-z]tmp files
 	//https://github.com/akamajoris/lastlogparser
 	//take the file parsing out of this project, the rest of the functions are unncecessary
+	f, err := os.Open("/var/log/lastlog")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	stats, err := f.Stat()
+	if err != nil {
+		panic(err)
+	}
+	size := stats.Size()
+
+	passwds := make([]*Passwd, 0)
+	C.setpwent()
+	for passwdC, err := C.getpwent(); passwdC != nil && err == nil; passwdC, err = C.getpwent() {
+		passwd := passwdC2Go(passwdC)
+		passwds = append(passwds, passwd)
+	}
+	C.endpwent()
+
+	for _, p := range passwds {
+		last, line, host, err := getLogByUID(int64(p.Uid), f, size)
+		if err != nil {
+			panic(err)
+		}
+
+		var lastlog string
+		if last == time.Unix(0, 0) {
+			lastlog = "**Never logged in**"
+		} else {
+			lastlog = last.String()
+			var info = &UserInfo{
+				Name: p.Name,
+				Line: line,
+				Host: host,
+				Last: lastlog,
+			}
+			log.Printf("%#v", info)
+		}
+	}
+}
+
+func getLogByUID(uid int64, lastLog *os.File, lastLogSize int64) (time.Time, string, string, error) {
+	offset := uid * int64(rsize)
+	if offset+int64(rsize) <= lastLogSize {
+		_, err := lastLog.Seek(offset, 0)
+		if err != nil {
+			return time.Unix(0, 0), "", "", err
+		}
+		rawRecord := make([]byte, rsize)
+		_, err = lastLog.Read(rawRecord)
+		if err != nil {
+			return time.Unix(0, 0), "", "", err
+		}
+		return bytes2time(rawRecord[:4]), string(bytes.Trim(rawRecord[4:36], "\x00")), string(bytes.Trim(rawRecord[36:], "\x00")), nil
+	}
+	return time.Unix(0, 0), "", "", nil
+}
+
+func bytes2time(b []byte) time.Time {
+	return time.Unix(int64(binary.LittleEndian.Uint32(b)), 0)
 }
 
 func GetUserInfo(mode int) uinfo {
@@ -1140,7 +1245,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 && mode != 2 && mode != 3 && mode != 4 && mode != 5 && mode != 1337 {
+	if mode != 1 &&
+		mode != 2 &&
+		mode != 3 &&
+		mode != 4 &&
+		mode != 5 &&
+		mode != 6 &&
+		mode != 1337 {
 		usage()
 		os.Exit(1)
 	}
@@ -1159,6 +1270,8 @@ func main() {
 		ProcMon()
 	} else if mode == 5 {
 		GetNetworkSurfing()
+	} else if mode == 6 {
+		TrackUserLogin()
 	} else if mode == 1337 {
 		QuickInterface()
 	}
