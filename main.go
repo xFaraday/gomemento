@@ -469,7 +469,40 @@ func GetHistFile(username string, shellname string, homedir string) string {
 
 var rsize = unsafe.Sizeof(record{})
 
-func TrackUserLogin() {
+func TimeDiff(uobject *UserInfo) int {
+	dt := time.Now()
+	cTime := dt.Format("15:04:06")
+	lTimeUnformatted := uobject.Last
+	lTime := strings.Split(lTimeUnformatted, " ")
+
+	cTimeSplit := strings.Split(cTime, ":")
+	lTimeSplit := strings.Split(lTime[1], ":")
+
+	SecPHour := 3600
+
+	println("Current Time: " + cTime)
+	cTimehr, _ := strconv.Atoi(cTimeSplit[0])
+	cTimemin, _ := strconv.Atoi(cTimeSplit[1])
+	cTimesec, _ := strconv.Atoi(cTimeSplit[2])
+	println(cTimehr * SecPHour)
+	println(cTimemin * 60)
+	println(cTimesec)
+	println("Last Time: " + lTimeUnformatted)
+	lTimehr, _ := strconv.Atoi(lTimeSplit[0])
+	lTimemin, _ := strconv.Atoi(lTimeSplit[1])
+	lTimesec, _ := strconv.Atoi(lTimeSplit[2])
+
+	cTimeSecTotal := (SecPHour * cTimehr) + (60 * cTimemin) + cTimesec
+	lTimeSecTotal := (SecPHour * lTimehr) + (60 * lTimemin) + lTimesec
+
+	println(cTimeSecTotal)
+	println(lTimeSecTotal)
+	diff := cTimeSecTotal - lTimeSecTotal
+
+	return diff
+}
+
+func TrackUserLogin(TimeInterval int) {
 	//parse lastlog file or maybe perhaps the [a-z]tmp files
 	//https://github.com/akamajoris/lastlogparser
 	//take the file parsing out of this project, the rest of the functions are unncecessary
@@ -510,7 +543,13 @@ func TrackUserLogin() {
 				Host: host,
 				Last: lastlog,
 			}
-			log.Printf("%#v", info)
+			//log.Printf("%#v", info)
+			diff := TimeDiff(info)
+			println(diff)
+			if diff < TimeInterval {
+				//call functions to track user
+				println("User: " + info.Name + " LOGGED IN")
+			}
 		}
 	}
 }
@@ -1271,7 +1310,7 @@ func main() {
 	} else if mode == 5 {
 		GetNetworkSurfing()
 	} else if mode == 6 {
-		TrackUserLogin()
+		TrackUserLogin(30)
 	} else if mode == 1337 {
 		QuickInterface()
 	}
