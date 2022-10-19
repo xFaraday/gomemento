@@ -546,7 +546,7 @@ func TrackUserLogin(TimeInterval int) {
 			//log.Printf("%#v", info)
 			diff := TimeDiff(info)
 			println(diff)
-			if diff < TimeInterval {
+			if diff < TimeInterval && diff > 0 {
 				//call functions to track user
 				println("User: " + info.Name + " LOGGED IN")
 			}
