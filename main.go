@@ -1283,6 +1283,25 @@ stuff to do:
 	-- to check if it was a good user or a bad boy or unknown boy
 	-- IMPORTANT, ADD FUNCTIONALITY TO BACK ENTIRE DIRECTORIES
 
+------------------------------------------------
+
+	-BIG NEEDED CHANGE
+	-- okay so because the hash of each file is stored in index.safe the
+	-- actual file does not needed to be stored exactly.  Some type of minimal
+	-- compression would be great.  Another entry would needed to be added to
+	-- index.safe to have the random generated compressed file equivalent. EX: asdf123894fsaj.compressed
+	-- then if the hash stored in index.safe does not equal the hash of the check file:
+	--- archive uncompressed
+	--- diff is taken
+	--- alert is generated
+	--- file restored to original state
+
+	The above would also fix the txt duplication bug where the txt extension is added
+	to files that already have a txt extension because the stored file name is now random
+	with the custom extension.  index.safe stores original file name
+
+------------------------------------------------
+
 	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
 	-- but stores it as "example.txt.txt" in /opt/memento.
 
