@@ -21,6 +21,7 @@ import (
 	"os"
 	"os/exec"
 	"path"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -121,7 +122,7 @@ type model struct {
 	activeTab  int
 }
 
-func PostToServ(m map[int]string) {
+func PostToServ(jsonblob []uint8) {
 	//post files to web server
 
 	/*
@@ -134,19 +135,14 @@ func PostToServ(m map[int]string) {
 			Post filename, file path, and hostname | /api/v1/store
 			Post json /api/v1/store/{filename+hostname}
 	*/
-	jsonStr, err := json.Marshal(m)
-	if err != nil {
-		panic(err)
-	} else {
-		//println(string(jsonStr))
-	}
 
-	resp, err := http.Post("http://localhost:80", "application/json", bytes.NewBuffer(jsonStr))
+	resp, err := http.Post("https://httpbin.org/post", "application/json", bytes.NewBuffer(jsonblob))
 
 	if err != nil {
 		panic(err)
 	} else {
 		println(resp.Status)
+		println(resp.Request)
 	}
 
 	defer resp.Body.Close()
@@ -336,6 +332,15 @@ func OverWriteBackup(storename string, file string) {
 	}
 }
 
+func BackDir(file string, overwrite string) {
+	fdir, _ := os.ReadDir(file)
+
+	for _, f := range fdir {
+		fpath := filepath.Join(file, f.Name())
+		CreateRestorePoint(fpath, overwrite)
+	}
+}
+
 func CreateRestorePoint(file string, overwrite string) {
 	indexfile := "/opt/memento/index.safe"
 	stats := CheckFile(file)
@@ -348,85 +353,92 @@ func CreateRestorePoint(file string, overwrite string) {
 			using -:- for easier splitting
 		*/
 		//indexstr := strings.Split(file, "/")
-		strsplit := strings.Split(file, "/")
-		storename := strsplit[len(strsplit)-1]
-
-		// /etc/passwd-:-passwd.txt-:-some date-:-hash
-		indexstr := file + "-:-" + storename + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
-		newindextstr := []byte(indexstr)
-
-		if _, err := os.Stat(indexfile); os.IsNotExist(err) {
-			werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
-			if werr != nil {
-				panic(werr)
-			}
-
-			BackFile(storename, file, 1)
+		if stats.hash == "directory" {
+			println("fuck, recursion time")
+			BackDir(file, overwrite)
 		} else {
-			checkresult := ExistsInIndex(indexfile, file)
-			//do the checks if it already exists in the indexfile
-			//if result is new, then prompt user to overwrite prev
-			//backup.  Also would be a good idea to pull this from params
-			//else then its not a new file just has the same storename
-			//so easy solution would be to gen a random number and use
-			//that as the storename or append that to the original storename.
-			//it might actually be a good idea in general to use random numbers
-			//for all the storename completely as a layer of obfuscation.  Although
-			//if permissions are set correctly on the backup directory then it is
-			//slightly redundant.
+			strsplit := strings.Split(file, "/")
+			storename := strsplit[len(strsplit)-1]
 
-			if checkresult == "newback" {
-				//prompt user to overwrite
+			// /etc/passwd-:-passwd.txt-:-some date-:-hash
+			indexstr := file + "-:-" + storename + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
+			newindextstr := []byte(indexstr)
 
-				if overwrite == "n" {
-					println("overwrite is set to n, exiting")
-					os.Exit(0)
+			if _, err := os.Stat(indexfile); os.IsNotExist(err) {
+				werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
+				if werr != nil {
+					panic(werr)
 				}
 
-				if overwrite == "y" {
-					println("Overwriting previous backup of :" + file)
-					OverWriteBackup(storename, file)
-				}
+				BackFile(storename, file, 1)
+			} else {
+				checkresult := ExistsInIndex(indexfile, file)
+				//do the checks if it already exists in the indexfile
+				//if result is new, then prompt user to overwrite prev
+				//backup.  Also would be a good idea to pull this from params
+				//else then its not a new file just has the same storename
+				//so easy solution would be to gen a random number and use
+				//that as the storename or append that to the original storename.
+				//it might actually be a good idea in general to use random numbers
+				//for all the storename completely as a layer of obfuscation.  Although
+				//if permissions are set correctly on the backup directory then it is
+				//slightly redundant.
 
-				if overwrite == "" {
-					println("File already exists in index.  Overwrite?")
-					println("y/n")
-					var overwriteinput string
-					fmt.Scanln(&overwriteinput)
-					if overwriteinput == "y" {
-						println("Overwriting previous backup of :" + file)
-						OverWriteBackup(storename, file)
-					} else {
-						println("Exiting")
+				if checkresult == "newback" {
+					//prompt user to overwrite
+
+					if overwrite == "n" {
+						println("overwrite is set to n, exiting")
 						os.Exit(0)
 					}
+
+					if overwrite == "y" {
+						println("Overwriting previous backup of :" + file)
+						OverWriteBackup(storename, file)
+					}
+
+					if overwrite == "" {
+						println("File already exists in index.  Overwrite?")
+						println("y/n")
+						var overwriteinput string
+						fmt.Scanln(&overwriteinput)
+						if overwriteinput == "y" {
+							println("Overwriting previous backup of :" + file)
+							OverWriteBackup(storename, file)
+						} else {
+							println("Exiting")
+							os.Exit(0)
+						}
+					}
+					//overwrite and delete previous entry, and then add new entry
+					//or maybe just overwrite the original entry in indexfile
+				} else if checkresult == "filename" {
+					s1 := rand.NewSource(time.Now().UnixNano())
+					r1 := rand.New(s1)
+					storename = storename + "-" + strconv.Itoa(r1.Intn(100))
+
+					println("BACKING UP FILE: " + file)
+
+					BackFile(storename, file, 1)
+					//PostToServ(m)
+				} else if checkresult == "new" {
+					appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
+					if err != nil {
+						panic(err)
+					}
+					println("APPENDING TO INDEX FILE")
+					appendfile.WriteString(indexstr)
+					defer appendfile.Close()
+
+					println("BACKING UP FILE: " + file)
+
+					BackFile(storename, file, 1)
+					//PostToServ(m)
 				}
-				//overwrite and delete previous entry, and then add new entry
-				//or maybe just overwrite the original entry in indexfile
-			} else if checkresult == "filename" {
-				s1 := rand.NewSource(time.Now().UnixNano())
-				r1 := rand.New(s1)
-				storename = storename + "-" + strconv.Itoa(r1.Intn(100))
-
-				println("BACKING UP FILE: " + file)
-
-				BackFile(storename, file, 1)
-				//PostToServ(m)
-			} else if checkresult == "new" {
-				appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
-				if err != nil {
-					panic(err)
-				}
-				println("APPENDING TO INDEX FILE")
-				appendfile.WriteString(indexstr)
-				defer appendfile.Close()
-
-				println("BACKING UP FILE: " + file)
-
-				BackFile(storename, file, 1)
-				//PostToServ(m)
 			}
 		}
+	} else {
+		println("Nothing to backup :(")
 	}
 }
 
@@ -440,12 +452,12 @@ func RestoreController(file string, overwrite string) {
 		}
 	}
 
-	filecheckstats := CheckFile(file)
-	if filecheckstats.size != 0 {
-		CreateRestorePoint(file, overwrite)
-	} else {
-		println("Nothing to backup (ツ)_/¯")
-	}
+	//filecheckstats := CheckFile(file)
+	//if filecheckstats.size != 0 {
+	CreateRestorePoint(file, overwrite)
+	//} else {
+	//	println("Nothing to backup (ツ)_/¯")
+	//}
 }
 
 func GetHistFile(username string, shellname string, homedir string) string {
@@ -470,6 +482,12 @@ func GetHistFile(username string, shellname string, homedir string) string {
 var rsize = unsafe.Sizeof(record{})
 
 func TimeDiff(uobject *UserInfo) int {
+	/*
+		Time package is much more accomodating than I previously thought.
+		Probably change this function to user time.after() or maybe using
+		the UnixMili() function.
+	*/
+
 	dt := time.Now()
 	cTime := dt.Format("15:04:06")
 	lTimeUnformatted := uobject.Last
@@ -480,14 +498,14 @@ func TimeDiff(uobject *UserInfo) int {
 
 	SecPHour := 3600
 
-	println("Current Time: " + cTime)
+	//println("Current Time: " + cTime)
 	cTimehr, _ := strconv.Atoi(cTimeSplit[0])
 	cTimemin, _ := strconv.Atoi(cTimeSplit[1])
 	cTimesec, _ := strconv.Atoi(cTimeSplit[2])
-	println(cTimehr * SecPHour)
-	println(cTimemin * 60)
-	println(cTimesec)
-	println("Last Time: " + lTimeUnformatted)
+	//println(cTimehr * SecPHour)
+	//println(cTimemin * 60)
+	//println(cTimesec)
+	//println("Last Time: " + lTimeUnformatted)
 	lTimehr, _ := strconv.Atoi(lTimeSplit[0])
 	lTimemin, _ := strconv.Atoi(lTimeSplit[1])
 	lTimesec, _ := strconv.Atoi(lTimeSplit[2])
@@ -495,11 +513,38 @@ func TimeDiff(uobject *UserInfo) int {
 	cTimeSecTotal := (SecPHour * cTimehr) + (60 * cTimemin) + cTimesec
 	lTimeSecTotal := (SecPHour * lTimehr) + (60 * lTimemin) + lTimesec
 
-	println(cTimeSecTotal)
-	println(lTimeSecTotal)
+	//println(cTimeSecTotal)
+	//println(lTimeSecTotal)
 	diff := cTimeSecTotal - lTimeSecTotal
 
 	return diff
+}
+
+func UserLoginEvent(uobject *UserInfo) {
+	//generating alert for user login
+	var inc incident = incident{
+		Name:     "UserLogin",
+		User:     uobject.Name,
+		Process:  "", //maybe fill this later?
+		RemoteIP: uobject.Host,
+		Cmd:      "",
+	}
+
+	IP := GetIP()
+	hostname := "host-" + strings.Split(IP, ".")[3]
+
+	var al alert = alert{
+		Host:     hostname,
+		Incident: inc,
+	}
+
+	//generate json
+	json, _ := json.Marshal(al)
+
+	//send alert to webserv
+	PostToServ(json)
+
+	//shit to track
 }
 
 func TrackUserLogin(TimeInterval int) {
@@ -545,10 +590,14 @@ func TrackUserLogin(TimeInterval int) {
 			}
 			//log.Printf("%#v", info)
 			diff := TimeDiff(info)
-			println(diff)
+			//println(diff)
 			if diff < TimeInterval && diff > 0 {
 				//call functions to track user
-				println("User: " + info.Name + " LOGGED IN")
+				println("USER: " + info.Name + " LOGGED IN FROM: " + info.Host)
+				//backup history file
+				//reccurently monitor user processes
+				//check for new files
+				UserLoginEvent(info)
 			}
 		}
 	}
@@ -633,33 +682,52 @@ func GetUserInfo(mode int) uinfo {
 }
 
 func CheckFile(name string) finfo {
-	fileInfo, _ := os.Stat(name)
-	f, err := os.Open(name)
+	fileInfo, err := os.Stat(name)
 	if err != nil {
 		panic(err)
 	}
-	if err != nil {
-		if os.IsNotExist(err) {
-			println("file not found:", fileInfo.Name())
+	println(name)
+	if fileInfo.IsDir() {
+
+		t := fileInfo.ModTime().String()
+		b := fileInfo.Size()
+
+		i := finfo{
+			name: name,
+			size: b,
+			time: t,
+			hash: "directory",
 		}
-	}
-	h := sha256.New()
-	if _, err := io.Copy(h, f); err != nil {
-		panic(err)
-	}
-	hash := h.Sum(nil)
-	Enc := base64.StdEncoding.EncodeToString(hash)
 
-	t := fileInfo.ModTime().String()
-	b := fileInfo.Size()
+		return i
+	} else {
+		f, err := os.Open(name)
+		if err != nil {
+			panic(err)
+		}
+		if err != nil {
+			if os.IsNotExist(err) {
+				println("file not found:", fileInfo.Name())
+			}
+		}
+		h := sha256.New()
+		if _, err := io.Copy(h, f); err != nil {
+			panic(err)
+		}
+		hash := h.Sum(nil)
+		Enc := base64.StdEncoding.EncodeToString(hash)
 
-	i := finfo{
-		name: name,
-		size: b,
-		time: t,
-		hash: Enc,
+		t := fileInfo.ModTime().String()
+		b := fileInfo.Size()
+
+		i := finfo{
+			name: name,
+			size: b,
+			time: t,
+			hash: Enc,
+		}
+		return i
 	}
-	return i
 }
 
 func ArtifactHunt() {

@@ -1,3 +1,5 @@
+github.com/akamajoris/lastlogparser v0.0.0-20171026092254-7329d97e1731 h1:4vhh0prIfQloJjsNupq7jGWeTIknqCucSnl707ptkFw=
+github.com/akamajoris/lastlogparser v0.0.0-20171026092254-7329d97e1731/go.mod h1:9cI6kGWIA6PaG8S5jUbMEyxHKcql2Fd0aXCuFCu81dw=
 github.com/charmbracelet/bubbletea v0.22.1 h1:z66q0LWdJNOWEH9zadiAIXp2GN1AWrwNXU8obVY9X24=
 github.com/charmbracelet/bubbletea v0.22.1/go.mod h1:8/7hVvbPN6ZZPkczLiB8YpLkLJ0n7DMho5Wvfd2X1C0=
 github.com/charmbracelet/lipgloss v0.6.0 h1:1StyZB9vBSOyuZxQUcUwGr17JmojPNm87inij9N3wJY=
