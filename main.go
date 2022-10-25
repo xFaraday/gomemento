@@ -33,6 +33,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/klauspost/compress/zstd"
 	"github.com/robfig/cron"
 	"github.com/weaveworks/procspy"
 )
@@ -254,8 +255,40 @@ func VerifyFiles() {
 	}
 }
 
-func BackFile(storename string, file string, mode int) {
-	dirforbackups := "/opt/memento"
+/*
+	Improve Compress and Decompress later:
+		-> Add dictionary method for better compression
+		-> Better manage encoders and decoders
+*/
+
+func Compress(in io.Reader, out io.Writer) error {
+	enc, err := zstd.NewWriter(out)
+	if err != nil {
+		return err
+	}
+	//gets data from in and writes it to enc, which is out
+	_, err = io.Copy(enc, in)
+	if err != nil {
+		enc.Close()
+		return err
+	}
+	return enc.Close()
+}
+
+func Decompress(in io.Reader, out io.Writer) error {
+	d, err := zstd.NewReader(in)
+	if err != nil {
+		return err
+	}
+	defer d.Close()
+
+	// Copy content...
+	_, err = io.Copy(out, d)
+	return err
+}
+
+func BackFile(storename string, file string /*, mode int*/) {
+	/*dirforbackups := "/opt/memento"
 	if mode == 1 {
 		backupname := dirforbackups + "/" + storename + ".txt"
 		raw, err := os.Open(file)
@@ -287,22 +320,33 @@ func BackFile(storename string, file string, mode int) {
 		}
 		outfile.Close()
 	}
+	*/
+	dirforbackups := "/opt/memento/"
+	OriginFile, err := os.Open(file)
+	if err != nil {
+		panic(err)
+	}
+
+	CompressedFile, err := os.Create(dirforbackups + storename)
+	if err != nil {
+		panic(err)
+	}
+
+	PointData := bufio.NewReader(OriginFile)
+	Compress(PointData, CompressedFile)
+
+	defer OriginFile.Close()
+	defer CompressedFile.Close()
 }
 
 func ExistsInIndex(indexfile string, file string) string {
-	strsplit := strings.Split(file, "/")
-	storename := strsplit[len(strsplit)-1]
 	strlist := OpenFile(indexfile)
 
-	for _, str := range strlist {
-		splittysplit := strings.Split(str, "-:-")
+	for _, indexstr := range strlist {
+		splittysplit := strings.Split(indexstr, "-:-")
 		if splittysplit[0] == file {
 			println("exact file exists in index")
 			return "newback"
-		}
-		if splittysplit[1] == storename {
-			println("duplicate file name")
-			return "filename"
 		}
 	}
 	return "new"
@@ -312,27 +356,27 @@ func OverWriteOriginal(original string, storepath string) {
 	//delete original
 	//call modified BackFile function
 	os.Remove(original)
-	BackFile(original, storepath, 2)
+	BackFile(original, storepath)
 
 }
 
 func OverWriteBackup(storename string, file string) {
 	f := OpenFile("/opt/memento/index.safe")
-	for _, str := range f {
+	for _, indexstr := range f {
 		var m = make(map[int]string)
-		splittysplit := strings.Split(str, "-:-")
+		splittysplit := strings.Split(indexstr, "-:-")
 		//original file path
 		m[0] = splittysplit[0]
-		//file store name
-		m[1] = splittysplit[1]
+		//file backup name
+		m[1] = splittysplit[2]
 		if file == m[0] {
-			os.Remove("/opt/memento" + "/" + m[1] + ".txt")
-			BackFile(storename, file, 1)
+			os.Remove("/opt/memento/" + m[1])
+			BackFile(m[1], file)
 		}
 	}
 }
 
-func BackDir(file string, overwrite string) {
+func BackDir(file string, overwrite bool) {
 	fdir, _ := os.ReadDir(file)
 
 	for _, f := range fdir {
@@ -341,27 +385,42 @@ func BackDir(file string, overwrite string) {
 	}
 }
 
-func CreateRestorePoint(file string, overwrite string) {
+func GenRandomName() string {
+	rand.Seed(time.Now().UnixNano())
+	chars := []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ1234567890")
+	b := make([]rune, 15)
+	for i := range b {
+		b[i] = chars[rand.Intn(len(chars))]
+	}
+	return string(b)
+}
+
+func CreateRestorePoint(file string, overwrite bool) {
 	indexfile := "/opt/memento/index.safe"
 	stats := CheckFile(file)
 	if stats.size != 0 {
 		/*
 			Index file format:
 			Simple ->
-			fullpath:localfilenamewithoutthejson:thetimeoflastmodification
-			file:storename:stats.time
-			using -:- for easier splitting
+			fullpath-:-filename w/extension-:-CompressedBackupName-:-LastModTime-:-hash
+			Ex:
+			/opt/memento/index.safe-:-index.safe-:-ADZOPRJ13SMF.zst-:-2021-01-01 00:00:00-:-9pN02HFtrhT4EGw+SdIECoj0HV8PBLY8qkZjwaKGRvo=
 		*/
 		//indexstr := strings.Split(file, "/")
 		if stats.hash == "directory" {
-			println("fuck, recursion time")
+			//loop through each subdir for files, because
+			//the full path is stored inside of the index
+			//there is no need to actually store directories
+			//although with this method, the restore functions
+			//would need to verify directory structure still exists
 			BackDir(file, overwrite)
 		} else {
 			strsplit := strings.Split(file, "/")
 			storename := strsplit[len(strsplit)-1]
 
 			// /etc/passwd-:-passwd.txt-:-some date-:-hash
-			indexstr := file + "-:-" + storename + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
+			backname := GenRandomName() + ".zst"
+			indexstr := file + "-:-" + storename + "-:-" + backname + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
 			newindextstr := []byte(indexstr)
 
 			if _, err := os.Stat(indexfile); os.IsNotExist(err) {
@@ -370,58 +429,20 @@ func CreateRestorePoint(file string, overwrite string) {
 					panic(werr)
 				}
 
-				BackFile(storename, file, 1)
+				BackFile(backname, file)
 			} else {
 				checkresult := ExistsInIndex(indexfile, file)
-				//do the checks if it already exists in the indexfile
-				//if result is new, then prompt user to overwrite prev
-				//backup.  Also would be a good idea to pull this from params
-				//else then its not a new file just has the same storename
-				//so easy solution would be to gen a random number and use
-				//that as the storename or append that to the original storename.
-				//it might actually be a good idea in general to use random numbers
-				//for all the storename completely as a layer of obfuscation.  Although
-				//if permissions are set correctly on the backup directory then it is
-				//slightly redundant.
 
-				if checkresult == "newback" {
-					//prompt user to overwrite
-
-					if overwrite == "n" {
+				switch checkresult {
+				case "newback":
+					if overwrite {
+						println("Overwriting previous backup of :" + file)
+						OverWriteBackup(storename, file)
+					} else {
 						println("overwrite is set to n, exiting")
 						os.Exit(0)
 					}
-
-					if overwrite == "y" {
-						println("Overwriting previous backup of :" + file)
-						OverWriteBackup(storename, file)
-					}
-
-					if overwrite == "" {
-						println("File already exists in index.  Overwrite?")
-						println("y/n")
-						var overwriteinput string
-						fmt.Scanln(&overwriteinput)
-						if overwriteinput == "y" {
-							println("Overwriting previous backup of :" + file)
-							OverWriteBackup(storename, file)
-						} else {
-							println("Exiting")
-							os.Exit(0)
-						}
-					}
-					//overwrite and delete previous entry, and then add new entry
-					//or maybe just overwrite the original entry in indexfile
-				} else if checkresult == "filename" {
-					s1 := rand.NewSource(time.Now().UnixNano())
-					r1 := rand.New(s1)
-					storename = storename + "-" + strconv.Itoa(r1.Intn(100))
-
-					println("BACKING UP FILE: " + file)
-
-					BackFile(storename, file, 1)
-					//PostToServ(m)
-				} else if checkresult == "new" {
+				case "new":
 					appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
 					if err != nil {
 						panic(err)
@@ -432,7 +453,7 @@ func CreateRestorePoint(file string, overwrite string) {
 
 					println("BACKING UP FILE: " + file)
 
-					BackFile(storename, file, 1)
+					BackFile(backname, file)
 					//PostToServ(m)
 				}
 			}
@@ -442,7 +463,7 @@ func CreateRestorePoint(file string, overwrite string) {
 	}
 }
 
-func RestoreController(file string, overwrite string) {
+func RestoreController(file string, overwrite bool) {
 	dirforbackups := "/opt/memento"
 	if _, err := os.Stat(dirforbackups); err != nil {
 		if os.IsNotExist(err) {
@@ -1265,7 +1286,7 @@ func usage() {
 	println("\t\t./gomemento --mode=1")
 	println("\n\n\tFILE BACK STUFF:")
 	println("\t\t./gomemento --mode=2 --file=/etc/passwd")
-	println("\t\t./gomemento --mode=2 --file=/etc/passwd --overwrite=y")
+	println("\t\t./gomemento --mode=2 --file=/etc/passwd --overwrite")
 	println("\t\t./gomemento --mode=3")
 	println("\n\n\tProcess check:")
 	println("\t\t./gomemento --mode=4")
@@ -1358,12 +1379,12 @@ func main() {
 	var (
 		mode      int
 		file      string
-		overwrite string
+		overwrite bool
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
 	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files, 4 = process check")
-	flag.StringVar(&overwrite, "overwrite", "", "Overwrite backup; perform new backup [y/n]")
+	flag.BoolVar(&overwrite, "overwrite", true, "Specify overwrite flag to overwrite existing backup")
 	flag.Parse()
 
 	if len(os.Args) <= 1 {
