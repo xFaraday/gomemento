@@ -254,6 +254,7 @@ func VerifyFiles() {
 
 				Decompress(RevertCompressedFile, tmpcmpfile)
 
+				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
 				GetDiff(m[0], tmpcmpfile.Name())
 
 				//actions once the difference is logged
@@ -479,15 +480,7 @@ func CreateRestorePoint(file string, overwrite bool) {
 }
 
 func RestoreController(file string, overwrite bool) {
-	dirforbackups := "/opt/memento"
-	if _, err := os.Stat(dirforbackups); err != nil {
-		if os.IsNotExist(err) {
-			os.Mkdir(dirforbackups, 0777)
-		} else {
-			panic(err)
-		}
-	}
-
+	VerifiyRunIntegrity()
 	//filecheckstats := CheckFile(file)
 	//if filecheckstats.size != 0 {
 	CreateRestorePoint(file, overwrite)
@@ -1165,6 +1158,17 @@ func ProcMon() {
 	}
 }
 
+func EstablishDeceptionMechanisms() {
+	//hide /opt/memento directory
+	lsAlias := []byte("alias ls='ls -I memento'")
+	println(string(lsAlias))
+
+	//seed fake credentials
+
+	//seed fake user account
+
+}
+
 func EstablishPersistence() {
 	/*
 		Establish cronjob for now, maybe look into getting some type of systemd service?
@@ -1176,10 +1180,19 @@ func EstablishPersistence() {
 }
 
 func VerifiyRunIntegrity() {
-	/*
-		Function run every ? minutes to verify the integrity of the EDR solution.
-		So are file permissions correct??
-	*/
+	//EstablishPersistance() and VerifyRunIntegrity() must have a symbiotic relationship
+	//because they are two halves of the same coin.  VerifyRunIntegrity() will check to
+	//see if the persistence mechanism is still in place, and if not, it will re-establish
+	//it.  This is to ensure that the persistence mechanisms are always in place.
+
+	dirforbackups := "/opt/memento"
+	if _, err := os.Stat(dirforbackups); err != nil {
+		if os.IsNotExist(err) {
+			os.Mkdir(dirforbackups, 0700)
+		} else {
+			panic(err)
+		}
+	}
 
 }
 
@@ -1321,7 +1334,7 @@ stuff to do:
 
 ------------------------------------------------
 
-	-BIG NEEDED CHANGE
+	-big needed change ✓ EXCEPT THE ALERT PART
 	-- okay so because the hash of each file is stored in index.safe the
 	-- actual file does not needed to be stored exactly.  Some type of minimal
 	-- compression would be great.  Another entry would needed to be added to
@@ -1337,9 +1350,6 @@ stuff to do:
 	with the custom extension.  index.safe stores original file name
 
 ------------------------------------------------
-
-	- Fix bug when storing a txt file. Stores it in index.safe as "example.txt" but
-	-- but stores it as "example.txt.txt" in /opt/memento.
 
 	- Finish cmdhist()
 
