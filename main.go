@@ -230,26 +230,36 @@ func VerifyFiles() {
 	safestats := CheckFile("/opt/memento/index.safe")
 	if safestats.size != 0 {
 		f := OpenFile("/opt/memento/index.safe")
-		for _, str := range f {
+		for _, indexstr := range f {
 			var m = make(map[int]string)
-			splittysplit := strings.Split(str, "-:-")
+			splittysplit := strings.Split(indexstr, "-:-")
+
 			//original file path
 			m[0] = splittysplit[0]
 			//file store name
 			m[1] = splittysplit[1]
-			//file mod date
+			//backup name
 			m[2] = splittysplit[2]
-			//file hash b64
+			//mod date
 			m[3] = splittysplit[3]
+			//hash
+			m[4] = splittysplit[4]
+
 			fCurrentStats := CheckFile(m[0])
-			if fCurrentStats.hash != m[3] {
-				//file has been modified, figure out how
-				//get the diffs my guy
-				storepath := "/opt/memento/" + m[1] + ".txt"
-				GetDiff(m[0], storepath)
+			if fCurrentStats.hash != m[4] {
+				CompressedBackup := "/opt/memento/" + m[2]
+				//get uncompressed version
+				tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
+				RevertCompressedFile, _ := os.Open(CompressedBackup)
+
+				Decompress(RevertCompressedFile, tmpcmpfile)
+
+				GetDiff(m[0], tmpcmpfile.Name())
+
 				//actions once the difference is logged
-				OverWriteOriginal(m[0], storepath)
+				OverWriteModifiedFile(m[0], tmpcmpfile.Name())
 				println("File: " + m[0] + " has been restored to original state")
+				os.Remove(tmpcmpfile.Name())
 			}
 		}
 	}
@@ -352,12 +362,17 @@ func ExistsInIndex(indexfile string, file string) string {
 	return "new"
 }
 
-func OverWriteOriginal(original string, storepath string) {
+func OverWriteModifiedFile(OriginalPath string, FileBackup string) {
 	//delete original
 	//call modified BackFile function
-	os.Remove(original)
-	BackFile(original, storepath)
-
+	os.Remove(OriginalPath)
+	BytesToCopy, _ := os.Open(FileBackup)
+	NewFile, _ := os.Create(OriginalPath)
+	if _, err := io.Copy(NewFile, BytesToCopy); err != nil {
+		panic(err)
+	}
+	defer BytesToCopy.Close()
+	defer NewFile.Close()
 }
 
 func OverWriteBackup(storename string, file string) {
