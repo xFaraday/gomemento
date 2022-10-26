@@ -10,7 +10,6 @@ import (
 	"encoding/json"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
 	"unsafe"
@@ -62,6 +61,8 @@ type UserInfo struct {
 	Host string
 	Last string
 }
+
+var rsize = unsafe.Sizeof(record{})
 
 func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
 	return &Passwd{
@@ -145,8 +146,8 @@ func TrackUserLogin(TimeInterval int) {
 			}
 			//log.Printf("%#v", info)
 			diff := TimeDiff(info)
-			//println(diff)
-			if diff < TimeInterval && diff > 0 {
+			TimeIntervalInMillis := TimeInterval * 1000
+			if diff < TimeIntervalInMillis && diff > 0 {
 				//call functions to track user
 				println("USER: " + info.Name + " LOGGED IN FROM: " + info.Host)
 				//backup history file
@@ -236,43 +237,22 @@ func GetUserInfo(mode int) uinfo {
 
 }
 
-var rsize = unsafe.Sizeof(record{})
-
 func TimeDiff(uobject *UserInfo) int {
 	/*
-		Time package is much more accomodating than I previously thought.
-		Probably change this function to user time.after() or maybe using
-		the UnixMili() function.
+		Time Format = RFC 3339
 	*/
-
-	dt := time.Now()
-	cTime := dt.Format("15:04:06")
 	lTimeUnformatted := uobject.Last
 	lTime := strings.Split(lTimeUnformatted, " ")
 
-	cTimeSplit := strings.Split(cTime, ":")
-	lTimeSplit := strings.Split(lTime[1], ":")
+	lZoneUnformatted := lTime[2]
+	lZone := lZoneUnformatted[:3] + ":" + lZoneUnformatted[3:]
 
-	SecPHour := 3600
+	lPLS := lTime[0] + "T" + lTime[1] + lZone
 
-	//println("Current Time: " + cTime)
-	cTimehr, _ := strconv.Atoi(cTimeSplit[0])
-	cTimemin, _ := strconv.Atoi(cTimeSplit[1])
-	cTimesec, _ := strconv.Atoi(cTimeSplit[2])
-	//println(cTimehr * SecPHour)
-	//println(cTimemin * 60)
-	//println(cTimesec)
-	//println("Last Time: " + lTimeUnformatted)
-	lTimehr, _ := strconv.Atoi(lTimeSplit[0])
-	lTimemin, _ := strconv.Atoi(lTimeSplit[1])
-	lTimesec, _ := strconv.Atoi(lTimeSplit[2])
-
-	cTimeSecTotal := (SecPHour * cTimehr) + (60 * cTimemin) + cTimesec
-	lTimeSecTotal := (SecPHour * lTimehr) + (60 * lTimemin) + lTimesec
-
-	//println(cTimeSecTotal)
-	//println(lTimeSecTotal)
-	diff := cTimeSecTotal - lTimeSecTotal
-
-	return diff
+	t, err := time.Parse(time.RFC3339, lPLS)
+	if err != nil {
+		println(err)
+	}
+	difference := int(time.Now().UnixMilli() - t.UnixMilli())
+	return difference
 }
