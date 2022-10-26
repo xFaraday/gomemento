@@ -13,10 +13,10 @@ import (
 )
 
 type finfo struct {
-	name string
-	size int64
-	time string
-	hash string
+	Name string
+	Size int64
+	Time string
+	Hash string
 }
 
 func CheckFile(name string) finfo {
@@ -31,10 +31,10 @@ func CheckFile(name string) finfo {
 		b := fileInfo.Size()
 
 		i := finfo{
-			name: name,
-			size: b,
-			time: t,
-			hash: "directory",
+			Name: name,
+			Size: b,
+			Time: t,
+			Hash: "directory",
 		}
 
 		return i
@@ -59,10 +59,10 @@ func CheckFile(name string) finfo {
 		b := fileInfo.Size()
 
 		i := finfo{
-			name: name,
-			size: b,
-			time: t,
-			hash: Enc,
+			Name: name,
+			Size: b,
+			Time: t,
+			Hash: Enc,
 		}
 		return i
 	}
@@ -116,7 +116,7 @@ func GetHistFile(username string, shellname string, homedir string) string {
 func OpenFile(file string) []string {
 	var s []string
 	stats := CheckFile(file)
-	if stats.size != 0 {
+	if stats.Size != 0 {
 		f, err := os.Open(file)
 		if err != nil {
 			panic(err)

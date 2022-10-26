@@ -5,12 +5,25 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/robfig/cron"
 	"github.com/xFaraday/gomemento/filemon"
 	"github.com/xFaraday/gomemento/frontend"
 	"github.com/xFaraday/gomemento/netmon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
 )
+
+func cmdhist() {
+	user := usermon.GetUserInfo(1)
+	fmt.Printf("bruh: %v", user)
+	//strlist := common.OpenFile(user.shellpath)
+	//for _, str := range strlist {
+	//	cmd := FindDeviousCmd(str)
+	//	if cmd != "no" {
+	//		println(cmd)
+	//	}
+	//}
+}
 
 func ArtifactHunt() {
 	/*
@@ -25,6 +38,16 @@ func ArtifactHunt() {
 
 	*/
 
+}
+
+func EstablishPersistence() {
+	/*
+		Establish cronjob for now, maybe look into getting some type of systemd service?
+	*/
+	c := cron.New()
+	c.AddFunc("@every 2m", cmdhist)
+	c.AddFunc("@every 2m", filemon.VerifyFiles)
+	c.Start()
 }
 
 func usage() {
@@ -77,7 +100,7 @@ func main() {
 	}
 
 	if mode == 1 {
-		cmdmon.cmdhist()
+		cmdhist()
 	} else if mode == 2 {
 		if len(file) == 0 {
 			usage()

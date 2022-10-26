@@ -31,7 +31,7 @@ func GetDiff(file, storepath string) {
 
 func VerifyFiles() {
 	safestats := common.CheckFile("/opt/memento/index.safe")
-	if safestats.size != 0 {
+	if safestats.Size != 0 {
 		f := common.OpenFile("/opt/memento/index.safe")
 		for _, indexstr := range f {
 			var m = make(map[int]string)
@@ -49,7 +49,7 @@ func VerifyFiles() {
 			m[4] = splittysplit[4]
 
 			fCurrentStats := common.CheckFile(m[0])
-			if fCurrentStats.hash != m[4] {
+			if fCurrentStats.Hash != m[4] {
 				CompressedBackup := "/opt/memento/" + m[2]
 				//get uncompressed version
 				tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
@@ -76,39 +76,6 @@ func VerifyFiles() {
 */
 
 func BackFile(storename string, file string /*, mode int*/) {
-	/*dirforbackups := "/opt/memento"
-	if mode == 1 {
-		backupname := dirforbackups + "/" + storename + ".txt"
-		raw, err := os.Open(file)
-		if err != nil {
-			panic(err)
-		}
-		defer raw.Close()
-		outfile, err := os.Create(backupname)
-		if err != nil {
-			panic(err)
-		}
-		if _, err = io.Copy(outfile, raw); err != nil {
-			panic(err)
-		}
-		outfile.Close()
-	} else if mode == 2 {
-		backupname := storename
-		raw, err := os.Open(file)
-		if err != nil {
-			panic(err)
-		}
-		defer raw.Close()
-		outfile, err := os.Create(backupname)
-		if err != nil {
-			panic(err)
-		}
-		if _, err = io.Copy(outfile, raw); err != nil {
-			panic(err)
-		}
-		outfile.Close()
-	}
-	*/
 	dirforbackups := "/opt/memento/"
 	OriginFile, err := os.Open(file)
 	if err != nil {
@@ -191,7 +158,7 @@ func GenRandomName() string {
 func CreateRestorePoint(file string, overwrite bool) {
 	indexfile := "/opt/memento/index.safe"
 	stats := common.CheckFile(file)
-	if stats.size != 0 {
+	if stats.Size != 0 {
 		/*
 			Index file format:
 			Simple ->
@@ -200,12 +167,7 @@ func CreateRestorePoint(file string, overwrite bool) {
 			/opt/memento/index.safe-:-index.safe-:-ADZOPRJ13SMF.zst-:-2021-01-01 00:00:00-:-9pN02HFtrhT4EGw+SdIECoj0HV8PBLY8qkZjwaKGRvo=
 		*/
 		//indexstr := strings.Split(file, "/")
-		if stats.hash == "directory" {
-			//loop through each subdir for files, because
-			//the full path is stored inside of the index
-			//there is no need to actually store directories
-			//although with this method, the restore functions
-			//would need to verify directory structure still exists
+		if stats.Hash == "directory" {
 			BackDir(file, overwrite)
 		} else {
 			strsplit := strings.Split(file, "/")
@@ -213,7 +175,7 @@ func CreateRestorePoint(file string, overwrite bool) {
 
 			// /etc/passwd-:-passwd.txt-:-some date-:-hash
 			backname := GenRandomName() + ".zst"
-			indexstr := file + "-:-" + storename + "-:-" + backname + "-:-" + stats.time + "-:-" + string(stats.hash) + "\n"
+			indexstr := file + "-:-" + storename + "-:-" + backname + "-:-" + stats.Time + "-:-" + string(stats.Hash) + "\n"
 			newindextstr := []byte(indexstr)
 
 			if _, err := os.Stat(indexfile); os.IsNotExist(err) {

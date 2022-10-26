@@ -1,6 +1,7 @@
 package netmon
 
 import (
+	"fmt"
 	"log"
 	"os"
 	"strconv"
@@ -13,7 +14,8 @@ import (
 func UpdateNetworkIndex(constore []string) {
 	networkfile := "/opt/memento/networkprof.safe"
 	stats := common.CheckFile(networkfile)
-	if stats.size == 0 {
+	fmt.Printf("%v", stats)
+	if stats.Size == 0 {
 		file, err := os.OpenFile(networkfile, os.O_CREATE|os.O_WRONLY, 0644)
 		if err != nil {
 			panic(err)

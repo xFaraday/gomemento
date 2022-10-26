@@ -2,9 +2,6 @@ package hookmon
 
 import (
 	"os"
-
-	"github.com/robfig/cron"
-	"github.com/xFaraday/gomemento/filemon"
 )
 
 func EstablishDeceptionMechanisms() {
@@ -16,16 +13,6 @@ func EstablishDeceptionMechanisms() {
 
 	//seed fake user account
 
-}
-
-func EstablishPersistence() {
-	/*
-		Establish cronjob for now, maybe look into getting some type of systemd service?
-	*/
-	c := cron.New()
-	c.AddFunc("@every 2m", cmdmon.cmdhist)
-	c.AddFunc("@every 2m", filemon.VerifyFiles)
-	c.Start()
 }
 
 func VerifiyRunIntegrity() {

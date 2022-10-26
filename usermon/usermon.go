@@ -15,8 +15,8 @@ import (
 	"time"
 	"unsafe"
 
-	"github.com/gomemento/common"
-	"github.com/gomemento/webmon"
+	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/webmon"
 )
 
 type uinfo struct {
