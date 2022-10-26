@@ -1,0 +1,71 @@
+stuff to do:
+	- Flesh out EstablishPersistence() | ✓
+	-- Add systemd service with loggin set as rsyslog
+	- Create VerifyFiles() function instead of VerifyFile() | ✓
+	-- Also CheckFile() should capture the hash in addition to the other stats. | ✓
+
+	-- add linux command "stat" functionality, that is when a file was modified
+	-- to check if it was a good user or a bad boy or unknown boy
+	-- IMPORTANT, ADD FUNCTIONALITY TO BACK ENTIRE DIRECTORIES
+
+------------------------------------------------
+
+	-big needed change ✓ EXCEPT THE ALERT PART
+	-- okay so because the hash of each file is stored in index.safe the
+	-- actual file does not needed to be stored exactly.  Some type of minimal
+	-- compression would be great.  Another entry would needed to be added to
+	-- index.safe to have the random generated compressed file equivalent. EX: asdf123894fsaj.compressed
+	-- then if the hash stored in index.safe does not equal the hash of the check file:
+	--- archive uncompressed
+	--- diff is taken
+	--- alert is generated
+	--- file restored to original state
+
+	The above would also fix the txt duplication bug where the txt extension is added
+	to files that already have a txt extension because the stored file name is now random
+	with the custom extension.  index.safe stores original file name
+
+------------------------------------------------
+
+	- Finish cmdhist()
+
+	- Hella more user auditing
+	-- check for user last login, if a new login occurs then we should take appropriate actions
+	-- to monitor user activity
+	-- Avenues for monitoring user
+	--- check for processes spawned by that user
+	--- check for files created and access by that user
+	--- have history file saved and checked against new history file to see if anything has changed
+	---- https://askubuntu.com/questions/67283/is-it-possible-to-make-writing-to-bash-history-immediate
+	---- https://unix.stackexchange.com/questions/1055/how-to-make-bash-history-instantly-persistent
+
+	- Add process monitoring | ✓ (sorta)
+	-- Investigate /proc for "interesting" artifacts
+	-- Interrogate new processes, especially subprocesses that contain network capabilities
+	-- maybe layer this ability with cmdhist()
+	- Add Logging in /opt/memento/logs/
+
+	- Network mapper
+	-- Based on network connections over time, create a network profile for the host
+	-- Once the network profile is created and has a solid baseline, anomalies can
+	-- be detected.  The anomalies under extra scrutiny can be analyzed for easy
+	-- detection of maliscious activity.
+
+	- Add support for limited yara rules for detecting general things like use
+	-- of cobolt strike or exploit kits.  A lot of yara rules seems to be focused
+	-- on specific malware or specific threat actors. Better to focus for general
+	-- because we dont have threat data on threat actors in CCDC.
+
+	- All these things once developed can be aggregated by the scripting engine.
+	-- One end goal beyond have a fun interface with a bunch of datapoints organized
+	-- by host is to manufacture CTI in real time.  Blacklist users, block IPs, etc.
+	-- Even categorize TTPs.
+
+	- Add an alias to the bashrc files with ls -I /opt/gomemento so that any users
+	- would not be able to see the directory.  This would be a good way to hide
+	- the files we are generating.
+
+	- Would be nice section
+	-- Figure out a nice way to take advantage of concurrency. Maybe have a
+	-- task scheduler of sorts that takes all possible tasks and runs them
+	-- with go routines
