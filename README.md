@@ -1,13 +1,13 @@
 # GoMemento
-## Userspace EDR for linux/unix systems
-### Maybe eventually add eBPF support to eventaully enter the linux kernel
+## EDR for linux/unix systems
 
-Trending Linux EDR solutions typically operate in kernelspace to ensure granuality and accuracy of events.  However this approach introduces crashes, intrusive process hooking, and compatibility problems.  By staying in userspace, this EDR solution can operate in a variety of different kernel versions and distrobutions.
+Early development stages of an EDR for linux systems written in golang.
 
-Functionality:
-- /proc process monitoring
-- Configuration file monitoring and restoration
-- Network Profile Heuristics
-- User command monitoring
-- Red team artifact recovery
-- Log monitoring
+Status of Features:
+- File Backup w/compression ✓
+- File Verification ✓ -> 80%
+- CLI monitoring 40%
+- log monitoring 0%
+- user monitoring 40%
+- Process monitoring ✓ -> 80%
+- API funcs 20%
