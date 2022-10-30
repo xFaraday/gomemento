@@ -6,6 +6,8 @@ import (
 	"os"
 
 	"github.com/robfig/cron"
+	"github.com/xFaraday/gomemento/cmdmon"
+	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/filemon"
 	"github.com/xFaraday/gomemento/frontend"
 	"github.com/xFaraday/gomemento/netmon"
@@ -15,14 +17,13 @@ import (
 
 func cmdhist() {
 	user := usermon.GetUserInfo(1)
-	fmt.Printf("bruh: %v", user)
-	//strlist := common.OpenFile(user.shellpath)
-	//for _, str := range strlist {
-	//	cmd := FindDeviousCmd(str)
-	//	if cmd != "no" {
-	//		println(cmd)
-	//	}
-	//}
+	strlist := common.OpenFile(user.Shellpath)
+	for _, str := range strlist {
+		cmd := cmdmon.FindDeviousCmd(str)
+		if cmd != "no" {
+			println(cmd)
+		}
+	}
 }
 
 func ArtifactHunt() {
@@ -88,34 +89,23 @@ func main() {
 		os.Exit(1)
 	}
 
-	if mode != 1 &&
-		mode != 2 &&
-		mode != 3 &&
-		mode != 4 &&
-		mode != 5 &&
-		mode != 6 &&
-		mode != 1337 {
+	switch mode {
+	case 1:
+		cmdhist()
+	case 2:
+		filemon.RestoreController(file, overwrite)
+	case 3:
+		filemon.VerifyFiles()
+	case 4:
+		procmon.ProcMon()
+	case 5:
+		netmon.GetNetworkSurfing()
+	case 6:
+		usermon.TrackUserLogin(30)
+	case 1337:
+		frontend.QuickInterface()
+	default:
 		usage()
 		os.Exit(1)
-	}
-
-	if mode == 1 {
-		cmdhist()
-	} else if mode == 2 {
-		if len(file) == 0 {
-			usage()
-			os.Exit(1)
-		}
-		filemon.RestoreController(file, overwrite)
-	} else if mode == 3 {
-		filemon.VerifyFiles()
-	} else if mode == 4 {
-		procmon.ProcMon()
-	} else if mode == 5 {
-		netmon.GetNetworkSurfing()
-	} else if mode == 6 {
-		usermon.TrackUserLogin(30)
-	} else if mode == 1337 {
-		frontend.QuickInterface()
 	}
 }

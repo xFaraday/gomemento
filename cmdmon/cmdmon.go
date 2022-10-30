@@ -1,23 +1,8 @@
 package cmdmon
 
 import (
-	"fmt"
 	"strings"
-
-	"github.com/xFaraday/gomemento/usermon"
 )
-
-func cmdhist() {
-	user := usermon.GetUserInfo(1)
-	fmt.Printf("bruh: %v", user)
-	//strlist := common.OpenFile(user.shellpath)
-	//for _, str := range strlist {
-	//	cmd := FindDeviousCmd(str)
-	//	if cmd != "no" {
-	//		println(cmd)
-	//	}
-	//}
-}
 
 func FindDeviousCmd(cmd string) string {
 	/*

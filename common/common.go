@@ -156,3 +156,40 @@ func GetIP() string {
 	ipaddr := localAddr.IP
 	return ipaddr.String()
 }
+
+func IsHumanReadable(file string) bool {
+	f, err := os.Open(file)
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+	b := make([]byte, 4)
+	_, err = f.Read(b)
+	if err != nil {
+		panic(err)
+	}
+	// text := string(b)
+	// 60 = E, 76 = L, 70 = F
+	// ELF check
+	if (b[1] == 69) && (b[2] == 76) && (b[3] == 70) {
+		return false
+	}
+	// check for crazy ass bytes in file
+	// 0x00 = null byte
+	// 0x01 = start of heading
+	// 0x02 = start of text
+
+	r := bufio.NewReader(f)
+	for {
+		if c, _, err := r.ReadRune(); err != nil {
+			if err == io.EOF {
+				break
+			}
+		} else {
+			if string(c) == "\x00" || string(c) == "\x01" || string(c) == "\x02" {
+				return false
+			}
+		}
+	}
+	return true
+}

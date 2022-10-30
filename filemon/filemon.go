@@ -15,24 +15,30 @@ import (
 	"github.com/xFaraday/gomemento/hookmon"
 )
 
-func GetDiff(file, storepath string) {
-	cmdout, err := exec.Command("diff", "--unified", storepath, file).CombinedOutput()
-	if err != nil {
-		switch err.(type) {
-		case *exec.ExitError:
-		default:
-			panic(err)
+var (
+	dirforbackups = "/opt/memento/"
+	indexfile     = "/opt/memento/index.safe"
+)
+
+func GetDiff(file, storepath string) string {
+	if common.IsHumanReadable(file) {
+		cmdout, err := exec.Command("diff", "--unified", storepath, file).CombinedOutput()
+		if err != nil {
+			switch err.(type) {
+			case *exec.ExitError:
+			default:
+				panic(err)
+			}
 		}
+		return string(cmdout)
 	}
-	println(string(cmdout))
-	//maybe parse this in the future i dunno, make it nicer to read
-	//and also be able to send output to serv
+	return "binary, no diff"
 }
 
 func VerifyFiles() {
-	safestats := common.CheckFile("/opt/memento/index.safe")
+	safestats := common.CheckFile(indexfile)
 	if safestats.Size != 0 {
-		f := common.OpenFile("/opt/memento/index.safe")
+		f := common.OpenFile(indexfile)
 		for _, indexstr := range f {
 			var m = make(map[int]string)
 			splittysplit := strings.Split(indexstr, "-:-")
@@ -50,7 +56,7 @@ func VerifyFiles() {
 
 			fCurrentStats := common.CheckFile(m[0])
 			if fCurrentStats.Hash != m[4] {
-				CompressedBackup := "/opt/memento/" + m[2]
+				CompressedBackup := dirforbackups + m[2]
 				//get uncompressed version
 				tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
 				RevertCompressedFile, _ := os.Open(CompressedBackup)
@@ -58,7 +64,12 @@ func VerifyFiles() {
 				common.Decompress(RevertCompressedFile, tmpcmpfile)
 
 				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
-				GetDiff(m[0], tmpcmpfile.Name())
+				diff := GetDiff(m[0], tmpcmpfile.Name())
+				if diff == "binary, no diff" {
+					//log to file no diff
+				} else {
+					println(diff)
+				}
 
 				//actions once the difference is logged
 				OverWriteModifiedFile(m[0], tmpcmpfile.Name())
@@ -76,7 +87,6 @@ func VerifyFiles() {
 */
 
 func BackFile(storename string, file string /*, mode int*/) {
-	dirforbackups := "/opt/memento/"
 	OriginFile, err := os.Open(file)
 	if err != nil {
 		panic(err)
@@ -121,7 +131,7 @@ func OverWriteModifiedFile(OriginalPath string, FileBackup string) {
 }
 
 func OverWriteBackup(storename string, file string) {
-	f := common.OpenFile("/opt/memento/index.safe")
+	f := common.OpenFile(indexfile)
 	for _, indexstr := range f {
 		var m = make(map[int]string)
 		splittysplit := strings.Split(indexstr, "-:-")
@@ -130,7 +140,7 @@ func OverWriteBackup(storename string, file string) {
 		//file backup name
 		m[1] = splittysplit[2]
 		if file == m[0] {
-			os.Remove("/opt/memento/" + m[1])
+			os.Remove(dirforbackups + m[1])
 			BackFile(m[1], file)
 		}
 	}
@@ -156,7 +166,6 @@ func GenRandomName() string {
 }
 
 func CreateRestorePoint(file string, overwrite bool) {
-	indexfile := "/opt/memento/index.safe"
 	stats := common.CheckFile(file)
 	if stats.Size != 0 {
 		/*

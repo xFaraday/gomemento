@@ -19,11 +19,11 @@ import (
 )
 
 type uinfo struct {
-	username  string
-	userid    string
-	groupid   string
-	homedir   string
-	shellpath string
+	Username  string
+	Userid    string
+	Groupid   string
+	Homedir   string
+	Shellpath string
 }
 
 type Passwd struct {
@@ -200,11 +200,11 @@ func GetUserInfo(mode int) uinfo {
 				shellpathfull := common.GetHistFile(username, shellname, homedir)
 
 				u := uinfo{
-					username:  username,
-					userid:    userid,
-					groupid:   groupid,
-					homedir:   homedir,
-					shellpath: shellpathfull,
+					Username:  username,
+					Userid:    userid,
+					Groupid:   groupid,
+					Homedir:   homedir,
+					Shellpath: shellpathfull,
 				}
 				return u
 			}
@@ -224,11 +224,11 @@ func GetUserInfo(mode int) uinfo {
 			shellpathfull := common.GetHistFile(username, shellname, homedir)
 
 			u := uinfo{
-				username:  username,
-				userid:    userid,
-				groupid:   groupid,
-				homedir:   homedir,
-				shellpath: shellpathfull,
+				Username:  username,
+				Userid:    userid,
+				Groupid:   groupid,
+				Homedir:   homedir,
+				Shellpath: shellpathfull,
 			}
 			return u
 		}
