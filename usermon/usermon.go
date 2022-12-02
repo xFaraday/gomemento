@@ -7,7 +7,6 @@ import "C"
 import (
 	"bytes"
 	"encoding/binary"
-	"encoding/json"
 	"os"
 	"regexp"
 	"strings"
@@ -24,6 +23,11 @@ type uinfo struct {
 	Groupid   string
 	Homedir   string
 	Shellpath string
+	ShellVar  string
+}
+
+type Uinfosnap struct {
+	users []uinfo
 }
 
 type Passwd struct {
@@ -42,7 +46,7 @@ type record struct {
 	host [256]byte
 }
 
-type incident struct {
+type Incident struct {
 	Name     string
 	User     string
 	Process  string
@@ -50,9 +54,9 @@ type incident struct {
 	Cmd      string
 }
 
-type alert struct {
+type Alert struct {
 	Host     string
-	Incident incident
+	Incident Incident
 }
 
 type UserInfo struct {
@@ -78,7 +82,7 @@ func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
 
 func UserLoginEvent(uobject *UserInfo) {
 	//generating alert for user login
-	var inc incident = incident{
+	var inc Incident = Incident{
 		Name:     "UserLogin",
 		User:     uobject.Name,
 		Process:  "", //maybe fill this later?
@@ -86,20 +90,18 @@ func UserLoginEvent(uobject *UserInfo) {
 		Cmd:      "",
 	}
 
-	IP := common.GetIP()
+	IP := webmon.GetIP()
 	hostname := "host-" + strings.Split(IP, ".")[3]
 
-	var al alert = alert{
+	var alert Alert = Alert{
 		Host:     hostname,
 		Incident: inc,
 	}
 
-	//generate json
-	json, _ := json.Marshal(al)
-
 	//send alert to webserv
-	webmon.PostToServ(json)
+	//webmon.IncidentAlert(alert)
 
+	println(alert.Host)
 	//shit to track
 }
 
@@ -180,8 +182,11 @@ func bytes2time(b []byte) time.Time {
 	return time.Unix(int64(binary.LittleEndian.Uint32(b)), 0)
 }
 
-func GetUserInfo(mode int) uinfo {
+func GetUserInfo(mode int) []uinfo {
 	strlist := common.OpenFile("/etc/passwd")
+
+	var uinfos []uinfo
+
 	if mode == 1 {
 		var expr = regexp.MustCompile(`sh$`)
 
@@ -193,8 +198,8 @@ func GetUserInfo(mode int) uinfo {
 				userid := strsplit[2]
 				groupid := strsplit[3]
 				homedir := strsplit[5]
-				shell := strsplit[6]
-				shellsplit := strings.Split(shell, "/")
+				shellz := strsplit[6]
+				shellsplit := strings.Split(shellz, "/")
 				shellname := shellsplit[len(shellsplit)-1]
 
 				shellpathfull := common.GetHistFile(username, shellname, homedir)
@@ -205,13 +210,16 @@ func GetUserInfo(mode int) uinfo {
 					Groupid:   groupid,
 					Homedir:   homedir,
 					Shellpath: shellpathfull,
+					ShellVar:  shellname,
 				}
-				return u
+				uinfos = append(uinfos, u)
 			}
 		}
+		//return all users with shell
+		return uinfos
+
 	} else if mode == 2 {
 		for _, str := range strlist {
-			//Does user have a default shell?
 			strsplit := strings.Split(str, ":")
 			username := strsplit[0]
 			userid := strsplit[2]
@@ -230,11 +238,11 @@ func GetUserInfo(mode int) uinfo {
 				Homedir:   homedir,
 				Shellpath: shellpathfull,
 			}
-			return u
+			uinfos = append(uinfos, u)
 		}
+		return uinfos
 	}
-	return uinfo{}
-
+	return uinfos
 }
 
 func TimeDiff(uobject *UserInfo) int {

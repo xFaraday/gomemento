@@ -1,5 +1,57 @@
 package logmon
 
+import (
+	"os"
+	"time"
+
+	"github.com/xFaraday/gomemento/hookmon"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
+)
+
+/*
+Logging level reference
+    DebugLevel: are usually present only on development environments.
+    InfoLevel: default logging priority.
+    WarnLevel: more important than InfoLevel, but still doesn't need individual human attention.
+    ErrorLevel: these are high-priority and shouldn't be present in the application.
+    DPanicLevel: these are particularly important errors and in the development environment logger will panic.
+    PanicLevel: logs a message, then panics.
+    FatalLevel: logs a message, then calls os.Exit(1).
+*/
+
+func InitLogger() {
+	hookmon.VerifiyRunIntegrity()
+	writerSync := getLogWriter()
+	encoder := getEncoder()
+
+	core := zapcore.NewCore(encoder, writerSync, zapcore.DebugLevel)
+	logg := zap.New(core, zap.AddCaller())
+
+	zap.ReplaceGlobals(logg)
+}
+
+func getLogWriter() zapcore.WriteSyncer {
+	path := "/opt/memento/logs/gomemento.log"
+
+	file, err := os.OpenFile(path, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0700)
+	if err != nil {
+		panic(err)
+	}
+
+	return zapcore.AddSync(file)
+}
+
+func getEncoder() zapcore.Encoder {
+	encoderConfig := zap.NewProductionEncoderConfig()
+	encoderConfig.EncodeTime = zapcore.TimeEncoder(func(t time.Time, enc zapcore.PrimitiveArrayEncoder) {
+		enc.AppendString(t.UTC().Format("2006-01-02T15:04:05z0700"))
+	})
+
+	encoderConfig.EncodeLevel = zapcore.CapitalLevelEncoder
+	return zapcore.NewConsoleEncoder(encoderConfig)
+}
+
 func LogGuardian() {
 	/*
 		Parse logs for maliscious activity, also check for log tampering.

@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/config"
 	"github.com/xFaraday/gomemento/hookmon"
+	"go.uber.org/zap"
 )
 
 var (
@@ -66,15 +68,19 @@ func VerifyFiles() {
 				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
 				diff := GetDiff(m[0], tmpcmpfile.Name())
 				if diff == "binary, no diff" {
-					//log to file no diff
+					zap.S().Warn("File:" + m[0] + " has been modified, but is binary, no diff available")
 				} else {
-					println(diff)
+					zlog := zap.S().With(
+						"file", m[0],
+						"diff", diff,
+					)
+					zlog.Warn("File has been modified, diff below")
 				}
 
 				//actions once the difference is logged
 				OverWriteModifiedFile(m[0], tmpcmpfile.Name())
-				println("File: " + m[0] + " has been restored to original state")
 				os.Remove(tmpcmpfile.Name())
+				zap.S().Info("File: " + m[0] + " has been restored to original state")
 			}
 		}
 	}
@@ -200,9 +206,11 @@ func CreateRestorePoint(file string, overwrite bool) {
 				switch checkresult {
 				case "newback":
 					if overwrite {
-						println("Overwriting previous backup of :" + file)
+						zap.S().Info("Overwriting backup for file: " + file)
+						//println("Overwriting previous backup of :" + file)
 						OverWriteBackup(storename, file)
 					} else {
+						zap.S().Error("Skipping backup for file, overwrite set to n: " + file)
 						println("overwrite is set to n, exiting")
 						os.Exit(0)
 					}
@@ -211,11 +219,11 @@ func CreateRestorePoint(file string, overwrite bool) {
 					if err != nil {
 						panic(err)
 					}
-					println("APPENDING TO INDEX FILE")
 					appendfile.WriteString(indexstr)
 					defer appendfile.Close()
 
-					println("BACKING UP FILE: " + file)
+					zap.S().Info("File: " + file + " has been backed up")
+					//println("BACKING UP FILE: " + file)
 
 					BackFile(backname, file)
 					//PostToServ(m)
@@ -223,7 +231,7 @@ func CreateRestorePoint(file string, overwrite bool) {
 			}
 		}
 	} else {
-		println("Nothing to backup :(")
+		println("Nothing to backup :(, file is empty")
 	}
 }
 
@@ -235,4 +243,13 @@ func RestoreController(file string, overwrite bool) {
 	//} else {
 	//	println("Nothing to backup (ツ)_/¯")
 	//}
+}
+
+func JumpStart() {
+	hookmon.VerifiyRunIntegrity()
+	files := config.GetFilesForBackup()
+
+	for _, file := range files {
+		CreateRestorePoint(file, true)
+	}
 }

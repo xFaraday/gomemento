@@ -6,8 +6,21 @@ import (
 	"path"
 	"regexp"
 	"strconv"
+	"strings"
 	"syscall"
+
+	"github.com/xFaraday/gomemento/alertmon"
+	"github.com/xFaraday/gomemento/webmon"
+	"go.uber.org/zap"
 )
+
+/*
+SYSCALL SHIT IS NOW GOING TO BE IN VER.2:
+
+for now just scan with yara and upload to kapersky
+to determine if maliscious or now.  Also run through
+the command list.
+*/
 
 type ProcSnapshot struct {
 	Procs []Proc
@@ -178,11 +191,34 @@ func ProcMon() {
 		patternforSystemUserBin := regexp.MustCompile(`bash|sh|.php$|base64|nc|ncat|shell|^python|telnet|ruby`)
 
 		if patternforDeleted.MatchString(p.bin) {
-			fmt.Println("deleted binary found")
-			println("sus dir: " + p.CWD)
-			println("sus pid: " + p.Pid)
-			println("sus bin: " + p.bin)
-			SysTrace(p)
+			//fmt.Println("deleted binary found")
+			//println("sus dir: " + p.CWD)
+			//println("sus pid: " + p.Pid)
+			//println("sus bin: " + p.bin)
+			zlog := zap.S().With(
+				"REASON:", "deleted binary",
+				"pid", p.Pid,
+				"bin", p.bin,
+				"cwd", p.CWD,
+			)
+			zlog.Warn("Suspicious process found")
+			//gen alert
+			var inc alertmon.Incident = alertmon.Incident{
+				Name:     "Suspicious Process Found",
+				User:     "",
+				Process:  p.Pid, //maybe fill this later?
+				RemoteIP: "",
+				Cmd:      p.cmd,
+			}
+
+			IP := webmon.GetIP()
+			hostname := "host-" + strings.Split(IP, ".")[3]
+
+			var alert alertmon.Alert = alertmon.Alert{
+				Host:     hostname,
+				Incident: inc,
+			}
+			webmon.IncidentAlert(alert)
 		}
 
 		if p.CWD == "/tmp" || p.CWD == "/dev" {
@@ -191,7 +227,29 @@ func ProcMon() {
 			println("sus dir: " + p.CWD)
 			println("sus pid: " + p.Pid)
 			println("sus bin: " + p.bin)
-			SysTrace(p)
+			zlog := zap.S().With(
+				"REASON:", "Running from bad directory",
+				"pid", p.Pid,
+				"bin", p.bin,
+				"cwd", p.CWD,
+			)
+			zlog.Warn("Suspicious process found")
+			var inc alertmon.Incident = alertmon.Incident{
+				Name:     "Suspicious Process Found",
+				User:     "",
+				Process:  p.Pid, //maybe fill this later?
+				RemoteIP: "",
+				Cmd:      p.cmd,
+			}
+
+			IP := webmon.GetIP()
+			hostname := "host-" + strings.Split(IP, ".")[3]
+
+			var alert alertmon.Alert = alertmon.Alert{
+				Host:     hostname,
+				Incident: inc,
+			}
+			webmon.IncidentAlert(alert)
 		}
 
 		if p.uid > 0 && p.uid < 1000 {
@@ -199,13 +257,57 @@ func ProcMon() {
 			fmt.Println("system user running a process")
 			if patternforSystemUserBin.MatchString(p.bin) {
 				fmt.Println("system user running a shell")
-				SysTrace(p)
+				zlog := zap.S().With(
+					"REASON:", "System user running a shell",
+					"pid", p.Pid,
+					"bin", p.bin,
+					"cwd", p.CWD,
+				)
+				zlog.Warn("Suspicious process found")
+				var inc alertmon.Incident = alertmon.Incident{
+					Name:     "Suspicious Process Found",
+					User:     "",
+					Process:  p.Pid, //maybe fill this later?
+					RemoteIP: "",
+					Cmd:      p.cmd,
+				}
+
+				IP := webmon.GetIP()
+				hostname := "host-" + strings.Split(IP, ".")[3]
+
+				var alert alertmon.Alert = alertmon.Alert{
+					Host:     hostname,
+					Incident: inc,
+				}
+				webmon.IncidentAlert(alert)
 			}
 		}
 
 		if p.cmd == "." || p.cmd == "//" || p.cmd == " " {
 			fmt.Println("binary named '.' or '//' or ' '")
-			SysTrace(p)
+			zlog := zap.S().With(
+				"REASON:", "Process suspiciously named",
+				"pid", p.Pid,
+				"bin", p.bin,
+				"cwd", p.CWD,
+			)
+			zlog.Warn("Suspicious process found")
+			var inc alertmon.Incident = alertmon.Incident{
+				Name:     "Suspicious Process Found",
+				User:     "",
+				Process:  p.Pid, //maybe fill this later?
+				RemoteIP: "",
+				Cmd:      p.cmd,
+			}
+
+			IP := webmon.GetIP()
+			hostname := "host-" + strings.Split(IP, ".")[3]
+
+			var alert alertmon.Alert = alertmon.Alert{
+				Host:     hostname,
+				Incident: inc,
+			}
+			webmon.IncidentAlert(alert)
 		}
 	}
 }

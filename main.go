@@ -10,6 +10,8 @@ import (
 	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/filemon"
 	"github.com/xFaraday/gomemento/frontend"
+	"github.com/xFaraday/gomemento/hookmon"
+	"github.com/xFaraday/gomemento/logmon"
 	"github.com/xFaraday/gomemento/netmon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
@@ -17,11 +19,14 @@ import (
 
 func cmdhist() {
 	user := usermon.GetUserInfo(1)
-	strlist := common.OpenFile(user.Shellpath)
-	for _, str := range strlist {
-		cmd := cmdmon.FindDeviousCmd(str)
-		if cmd != "no" {
-			println(cmd)
+	for _, u := range user {
+		histfile := common.GetHistFile(u.Username, u.ShellVar, u.Homedir)
+		strlist := common.OpenFile(histfile)
+		for _, str := range strlist {
+			cmd := cmdmon.FindDeviousCmd(str)
+			if cmd != "no" {
+				println(cmd)
+			}
 		}
 	}
 }
@@ -39,6 +44,14 @@ func ArtifactHunt() {
 
 	*/
 
+}
+
+func ccdc() {
+	hookmon.EstablishDeceptions()
+
+	filemon.JumpStart()
+
+	EstablishPersistence()
 }
 
 func EstablishPersistence() {
@@ -73,6 +86,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	logmon.InitLogger()
+
 	var (
 		mode      int
 		file      string
@@ -102,8 +117,14 @@ func main() {
 		netmon.GetNetworkSurfing()
 	case 6:
 		usermon.TrackUserLogin(30)
+	case 7:
+		hookmon.EstablishDeceptions()
+	case 8:
+		hookmon.VerifiyRunIntegrity()
 	case 1337:
 		frontend.QuickInterface()
+	case 31337:
+		ccdc()
 	default:
 		usage()
 		os.Exit(1)
