@@ -11,6 +11,7 @@ import (
 	"crypto/sha1"
 	"go.uber.org/zap"
 	"github.com/xFaraday/gomomento/alertmon"
+	"github.com/xFaraday/gomemento/webmon"
 )
 
 type ServiceStats struct {
@@ -58,12 +59,20 @@ func ListServices() []ServiceStats {
 				)
 				user, _ := exec.Command("/usr/bin/whoami").Output()
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:	"Service Snapshot Mismatch",
+					Name:	"Potentially Malicious Service Added",
 					User:	string(user),
 					Process: "",
 					RemoteIP: "",
 					Cmd: "",
 				}
+				IP := webmon.GetIP()
+				hostname := "host-" + strings.Split(IP, ".")[3]
+
+				var alert alertmon.Alert{
+					Host:	hostname,
+					Incident: inc,
+				}
+				webmon.IncidentAlert(alert)
 			} else {
 				fmt.Println("[+] Hashes match. Resuming rest...")
 			}
