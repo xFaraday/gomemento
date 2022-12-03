@@ -54,8 +54,8 @@ func ListServices() []ServiceStats {
 				//func GetDifference(fileInput1 string, fileInput2 string) string {
 				diff := GetDifference("/tmp/servicesnap.orig", "/tmp/servicesnap.duplicate")
 				zlog := zap.S().With(
-					"REASON": "Service snapshots do not match! Potential tampering with services!",
-					"Diff output": diff,
+					"REASON:", "Service snapshots do not match! Potential tampering with services!",
+					"Diff output:", diff,
 				)
 				user, _ := exec.Command("/usr/bin/whoami").Output()
 				var inc alertmon.Incident = alertmon.Incident{
