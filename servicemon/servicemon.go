@@ -126,8 +126,9 @@ func ServiceSnap() string {
 }
 
 func GetDifference(fileInput1 string, fileInput2 string) string {
-	// diff cmd is error'ing out here
-	diffOut, err := exec.Command("/usr/bin/diff", fileInput1, fileInput2).Output()
+	// diff cmd is error'ing out here but still works
+	// diff will output original file content on 1 line, then modified file content on 2nd line
+	diffOut, err := exec.Command("/usr/bin/diff", "--line=format=%L", fileInput1, fileInput2).Output()
 	if err != nil {
 		fmt.Println(err)
 	}
