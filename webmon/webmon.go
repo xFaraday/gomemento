@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
@@ -16,6 +17,11 @@ import (
 type Beat struct {
 	IP string
 }
+
+var (
+	ssUserAgent = config.GetSerialScripterUserAgent()
+	ssIP        = config.GetSerialScripterIP()
+)
 
 func GetIP() string {
 	conn, err := net.Dial("udp", "8.8.8.8:80")
@@ -31,8 +37,6 @@ func GetIP() string {
 }
 
 func HeartBeat() {
-	ssUserAgent := config.GetSerialScripterUserAgent()
-
 	m := Beat{IP: GetIP()}
 	jsonStr, err := json.Marshal(m)
 	if err != nil {
@@ -46,7 +50,7 @@ func HeartBeat() {
 
 	bodyReader := bytes.NewReader(jsonStr)
 
-	requestURL := fmt.Sprintf("https://10.123.80.115:10000/api/v1/common/heartbeat")
+	requestURL := fmt.Sprintf(ssIP)
 	req, err := http.NewRequest(http.MethodPost, requestURL, bodyReader)
 	if err != nil {
 		println("error")
@@ -66,7 +70,6 @@ func HeartBeat() {
 }
 
 func IncidentAlert(alert alertmon.Alert) {
-	ssUserAgent := config.GetSerialScripterUserAgent()
 
 	jsonStr, err := json.Marshal(alert)
 	if err != nil {
@@ -80,7 +83,7 @@ func IncidentAlert(alert alertmon.Alert) {
 
 	bodyReader := bytes.NewReader(jsonStr)
 
-	requestURL := fmt.Sprintf("https://10.123.80.115:10000/api/v1/common/incidentalert")
+	requestURL := fmt.Sprintf(ssIP)
 	req, err := http.NewRequest(http.MethodPost, requestURL, bodyReader)
 	if err != nil {
 		println("error")
@@ -91,8 +94,8 @@ func IncidentAlert(alert alertmon.Alert) {
 	if err != nil {
 		println("error")
 	} else {
-		//data, _ := ioutil.ReadAll(resp.Body)
-		//println(string(data))
+		data, _ := ioutil.ReadAll(resp.Body)
+		println(string(data))
 	}
 
 	defer resp.Body.Close()

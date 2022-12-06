@@ -15,13 +15,13 @@ Majority of code written by Hunter Pittman. https://github.com/Hunter-Pittman
 type Configuration struct {
 	Apis struct {
 		Kaspersky struct {
-			APIKey string `json:"api_key"`
-		} `json:"kaspersky"`
+			APIKey string `json:"APIKey"`
+		} `json:"Kaspersky"`
 		SerialScripter struct {
-			IP        string `json:"api_key"`
-			UserAgent string `json:"user_agent"`
-		} `json:"serial_scripter"`
-	} `json:"apis"`
+			IP        string `json:"IP"`
+			UserAgent string `json:"UserAgent"`
+		} `json:"SerialScripter"`
+	} `json:"Apis"`
 }
 
 const CONFIG_LOC string = "/opt/memento/config.json"

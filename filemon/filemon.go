@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/xFaraday/gomemento/common"
-	"github.com/xFaraday/gomemento/config"
 	"github.com/xFaraday/gomemento/hookmon"
 	"go.uber.org/zap"
 )
@@ -247,9 +246,10 @@ func RestoreController(file string, overwrite bool) {
 
 func JumpStart() {
 	hookmon.VerifiyRunIntegrity()
-	files := config.GetFilesForBackup()
+	//files := config.GetFilesForBackup()
 
-	for _, file := range files {
-		CreateRestorePoint(file, true)
-	}
+	//for _, file := range files {
+	//CreateRestorePoint(file, true)
+	//	println("Backing up file: " + file)
+	//}
 }

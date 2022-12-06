@@ -6,8 +6,7 @@ import (
 	"os"
 
 	"github.com/robfig/cron"
-	"github.com/xFaraday/gomemento/cmdmon"
-	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/config"
 	"github.com/xFaraday/gomemento/filemon"
 	"github.com/xFaraday/gomemento/frontend"
 	"github.com/xFaraday/gomemento/hookmon"
@@ -16,20 +15,6 @@ import (
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
 )
-
-func cmdhist() {
-	user := usermon.GetUserInfo(1)
-	for _, u := range user {
-		histfile := common.GetHistFile(u.Username, u.ShellVar, u.Homedir)
-		strlist := common.OpenFile(histfile)
-		for _, str := range strlist {
-			cmd := cmdmon.FindDeviousCmd(str)
-			if cmd != "no" {
-				println(cmd)
-			}
-		}
-	}
-}
 
 func ArtifactHunt() {
 	/*
@@ -59,7 +44,6 @@ func EstablishPersistence() {
 		Establish cronjob for now, maybe look into getting some type of systemd service?
 	*/
 	c := cron.New()
-	c.AddFunc("@every 2m", cmdhist)
 	c.AddFunc("@every 2m", filemon.VerifyFiles)
 	c.Start()
 }
@@ -106,7 +90,7 @@ func main() {
 
 	switch mode {
 	case 1:
-		cmdhist()
+		filemon.JumpStart()
 	case 2:
 		filemon.RestoreController(file, overwrite)
 	case 3:
@@ -119,8 +103,12 @@ func main() {
 		usermon.TrackUserLogin(30)
 	case 7:
 		hookmon.EstablishDeceptions()
+		EstablishPersistence()
 	case 8:
 		hookmon.VerifiyRunIntegrity()
+	case 9:
+		IP := config.GetSerialScripterIP()
+		println(IP)
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:

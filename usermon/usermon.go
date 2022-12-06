@@ -2,19 +2,22 @@ package usermon
 
 // #include <stdlib.h>
 // #include <pwd.h>
-import "C"
+//import "C"
 
 import (
 	"bytes"
 	"encoding/binary"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 	"unsafe"
 
+	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/webmon"
+	"go.uber.org/zap"
 )
 
 type uinfo struct {
@@ -46,19 +49,6 @@ type record struct {
 	host [256]byte
 }
 
-type Incident struct {
-	Name     string
-	User     string
-	Process  string
-	RemoteIP string
-	Cmd      string
-}
-
-type Alert struct {
-	Host     string
-	Incident Incident
-}
-
 type UserInfo struct {
 	Name string
 	Line string
@@ -68,6 +58,7 @@ type UserInfo struct {
 
 var rsize = unsafe.Sizeof(record{})
 
+/*
 func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
 	return &Passwd{
 		Name:    C.GoString(passwdC.pw_name),
@@ -79,21 +70,22 @@ func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
 		Shell:   C.GoString(passwdC.pw_shell),
 	}
 }
+*/
 
 func UserLoginEvent(uobject *UserInfo) {
 	//generating alert for user login
-	var inc Incident = Incident{
+	var inc alertmon.Incident = alertmon.Incident{
 		Name:     "UserLogin",
 		User:     uobject.Name,
-		Process:  "", //maybe fill this later?
+		Process:  "dum", //maybe fill this later?
 		RemoteIP: uobject.Host,
-		Cmd:      "",
+		Cmd:      "dum",
 	}
 
 	IP := webmon.GetIP()
 	hostname := "host-" + strings.Split(IP, ".")[3]
 
-	var alert Alert = Alert{
+	var alert alertmon.Alert = alertmon.Alert{
 		Host:     hostname,
 		Incident: inc,
 	}
@@ -101,7 +93,7 @@ func UserLoginEvent(uobject *UserInfo) {
 	//send alert to webserv
 	//webmon.IncidentAlert(alert)
 
-	println(alert.Host)
+	webmon.IncidentAlert(alert)
 	//shit to track
 }
 
@@ -121,16 +113,21 @@ func TrackUserLogin(TimeInterval int) {
 	}
 	size := stats.Size()
 
-	passwds := make([]*Passwd, 0)
-	C.setpwent()
-	for passwdC, err := C.getpwent(); passwdC != nil && err == nil; passwdC, err = C.getpwent() {
-		passwd := passwdC2Go(passwdC)
-		passwds = append(passwds, passwd)
-	}
-	C.endpwent()
+	/*
+		passwds := make([]*Passwd, 0)
+		C.setpwent()
+		for passwdC, err := C.getpwent(); passwdC != nil && err == nil; passwdC, err = C.getpwent() {
+			passwd := passwdC2Go(passwdC)
+			passwds = append(passwds, passwd)
+		}
+		C.endpwent()
+	*/
+
+	passwds := GetUserInfo(1)
 
 	for _, p := range passwds {
-		last, line, host, err := getLogByUID(int64(p.Uid), f, size)
+		Uid, _ := strconv.Atoi(p.Userid)
+		last, line, host, err := getLogByUID(int64(Uid), f, size)
 		if err != nil {
 			panic(err)
 		}
@@ -141,7 +138,7 @@ func TrackUserLogin(TimeInterval int) {
 		} else {
 			lastlog = last.String()
 			var info = &UserInfo{
-				Name: p.Name,
+				Name: p.Username,
 				Line: line,
 				Host: host,
 				Last: lastlog,
@@ -152,6 +149,13 @@ func TrackUserLogin(TimeInterval int) {
 			if diff < TimeIntervalInMillis && diff > 0 {
 				//call functions to track user
 				println("USER: " + info.Name + " LOGGED IN FROM: " + info.Host)
+				zlog := zap.S().With(
+					"User", info.Name,
+					"From Host", info.Host,
+					"Last", info.Last,
+				)
+				zlog.Warn("USER LOGGED IN")
+
 				//backup history file
 				//reccurently monitor user processes
 				//check for new files
