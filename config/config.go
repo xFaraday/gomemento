@@ -18,16 +18,13 @@ type Configuration struct {
 			APIKey string `json:"api_key"`
 		} `json:"kaspersky"`
 		SerialScripter struct {
-			APIKey    string `json:"api_key"`
+			IP        string `json:"api_key"`
 			UserAgent string `json:"user_agent"`
 		} `json:"serial_scripter"`
 	} `json:"apis"`
-	FilesForBackup struct {
-		Files []string `json:"files"`
-	}
 }
 
-const CONFIG_LOC string = "/opt/gomomento/config.json"
+const CONFIG_LOC string = "/opt/memento/config.json"
 
 func GetKaperskyKey() string {
 	file, _ := os.Open(CONFIG_LOC)
@@ -53,7 +50,7 @@ func GetSerialScripterUserAgent() string {
 	return configuration.Apis.SerialScripter.UserAgent
 }
 
-func GetFilesForBackup() []string {
+func GetSerialScripterIP() string {
 	file, _ := os.Open(CONFIG_LOC)
 	defer file.Close()
 	decoder := json.NewDecoder(file)
@@ -62,7 +59,7 @@ func GetFilesForBackup() []string {
 	if err != nil {
 		fmt.Println("error:", err)
 	}
-	return configuration.FilesForBackup.Files
+	return configuration.Apis.SerialScripter.IP
 }
 
 /*
