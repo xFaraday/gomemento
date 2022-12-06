@@ -54,8 +54,8 @@ func ListServices() []ServiceStats {
 				//func GetDifference(fileInput1 string, fileInput2 string) string {
 				diff := GetDifference("/tmp/servicesnap.orig", "/tmp/servicesnap.duplicate")
 				zlog := zap.S().With(
-					"REASON": "Service snapshots do not match! Potential tampering with services!",
-					"Diff output": diff,
+					"REASON:", "Service snapshots do not match! Potential tampering with services!",
+					"Diff output:", diff,
 				)
 				user, _ := exec.Command("/usr/bin/whoami").Output()
 				var inc alertmon.Incident = alertmon.Incident{
@@ -126,8 +126,14 @@ func ServiceSnap() string {
 }
 
 func GetDifference(fileInput1 string, fileInput2 string) string {
-	// diff cmd is error'ing out here
-	diffOut, err := exec.Command("/usr/bin/diff", fileInput1, fileInput2).Output()
+	// diff cmd is error'ing out here but still works
+	/* diff will output original file content on 1 line, then modified file content on 2nd line
+		// Example: 
+			test	enable
+			test	disable
+		Service test was modified and disabled
+	*/
+	diffOut, err := exec.Command("/usr/bin/diff", "--line=%L", fileInput1, fileInput2).Output()
 	if err != nil {
 		fmt.Println(err)
 	}

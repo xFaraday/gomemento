@@ -2,6 +2,9 @@ package cmdmon
 
 import (
 	"strings"
+	"go.uber.org/zap"
+	"github.com/xFaraday/gomomento/alertmon"
+	"github.com/xFaraday/gomemento/webmon"
 )
 
 type SuspiciousCmd struct {
@@ -74,8 +77,6 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 		"nop",
 		"invoke-webrequest",
 		"reflection",
-		
-
 	}
 	
 	if len(cmd) != 0 {
@@ -84,7 +85,30 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 			lowerCaseCmd := strings.ToLower(cmd)
 			if strings.Contains(lowerCaseCmd, lowerCaseKnownParam) {
 				//fmt.Println("[+] Potentially malicious command found:" + cmd)
-				//fmt.Println("[+] Keyword match:" + lowerCaseKnownParam)
+				//fmt.Println("[+] Keyword match:" + lowerCaseKnownParam
+				zlog := zap.S().With(
+					"REASON:", "Suspicious Command Ran",
+					"Command Ran:", lowerCaseCmd,
+					"Matched Keyword:", lowerCaseKnownParam
+					)
+				zlog.Warn("Suspicious Command Ran")
+				//gen alert
+				var inc alertmon.Incident = alertmon.Incident{
+					Name:     "Suspicious Command Ran",
+					User:     "",
+					Process:  ""
+					RemoteIP: "",
+					Cmd:      lowerCaseCmd,
+				}
+
+				IP := webmon.GetIP()
+				hostname := "host-" + strings.Split(IP, ".")[3]
+
+				var alert alertmon.Alert = alertmon.Alert{
+					Host:     hostname,
+					Incident: inc,
+				}
+				webmon.IncidentAlert(alert)
 				return SuspiciousCmd{cmd, lowerCaseKnownParam}
 			}
 		}
@@ -214,6 +238,30 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 			if strings.Contains(lowerCaseCmd, lowerCaseKnownCmd) {
 				//fmt.Println("[!] Potential malicious command found. Ran command: " + lowerCaseCmd)
 				//fmt.Println("[!] Matched known malicious command: " + lowerCaseKnownCmd)
+				zlog := zap.S().With(
+					"REASON:", "Suspicious Command Ran",
+					"Command Ran:", lowerCaseCmd,
+					"Matched Keyword:", lowerCaseKnownCmd
+					)
+				zlog.Warn("Suspicious Command Ran")
+				//gen alert
+				var inc alertmon.Incident = alertmon.Incident{
+					Name:     "Suspicious Command Ran",
+					User:     "",
+					Process:  ""
+					RemoteIP: "",
+					Cmd:      lowerCaseCmd,
+				}
+
+				IP := webmon.GetIP()
+				hostname := "host-" + strings.Split(IP, ".")[3]
+
+				var alert alertmon.Alert = alertmon.Alert{
+					Host:     hostname,
+					Incident: inc,
+				}
+				webmon.IncidentAlert(alert)
+
 				return SuspiciousCmd{cmd, lowerCaseKnownCmd}
 			}
 		}
