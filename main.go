@@ -73,14 +73,16 @@ func main() {
 	logmon.InitLogger()
 
 	var (
-		mode      int
-		file      string
-		overwrite bool
+		mode           int
+		file           string
+		overwrite      bool
+		configlocation string
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
 	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files, 4 = process check")
 	flag.BoolVar(&overwrite, "overwrite", true, "Specify overwrite flag to overwrite existing backup")
+	flag.StringVar(&configlocation, "config web location", "https://raw.githubusercontent.com/xFaraday/gomemento/master/config/config.json", "Specify the location of the config file Ex: https://webserverIP/config.json")
 	flag.Parse()
 
 	if len(os.Args) <= 1 {

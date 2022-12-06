@@ -26,6 +26,10 @@ type Configuration struct {
 
 const CONFIG_LOC string = "/opt/memento/config.json"
 
+func RetrieveConfig() {
+
+}
+
 func GetKaperskyKey() string {
 	file, _ := os.Open(CONFIG_LOC)
 	defer file.Close()

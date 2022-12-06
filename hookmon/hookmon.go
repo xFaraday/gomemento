@@ -67,6 +67,12 @@ func EstablishDeceptions() {
 
 }
 
+func RetrieveConfig(configlocation string) {
+	//make a webrequest to the server to retrieve the config file
+	//and store it in /opt/memento/config.json
+
+}
+
 func VerifiyRunIntegrity() {
 	//EstablishPersistance() and VerifyRunIntegrity() must have a symbiotic relationship
 	//because they are two halves of the same coin.  VerifyRunIntegrity() will check to

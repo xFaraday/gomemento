@@ -150,12 +150,12 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 		"linenum",
 		"sudo -l",
 		"find / -perm -u=s -type f 2>/dev/null",
-		"find / -name authorized_keys 2&gt; /dev/null",
-		"find / -name id_rsa 2&gt; /dev/null",
+		"find / -name authorized_keys 2>/dev/null",
+		"find / -name id_rsa 2>/dev/null",
 		"dpkg -l",
 		"pspy", //tool used to find cronjobs: https://github.com/DominicBreuker/psp
-		"find / -writable -type f 2&gt;/dev/null",
-		"find / -perm -4000 -type f -exec ls -la {} 2>;/dev/null \\;",
+		"find / -writable -type f 2>/dev/null",
+		"find / -perm -4000 -type f -exec ls -la {} 2>/dev/null \\;",
 		"find / -uid 0 -perm -4000 -type f 2>/dev/null",
 		"find / -perm -u=s -type f 2>/dev/null",
 		"strings /dev/mem -n10 | grep -i PASS",
@@ -231,6 +231,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 		"zathura",
 		"zypper x",
 		"/etc/lsb-release",
+		"mysqldump",
 	}
 	if len(cmd) != 0 {
 		lowerCaseCmd := strings.ToLower(cmd)
