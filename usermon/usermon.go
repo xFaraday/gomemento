@@ -1,9 +1,5 @@
 package usermon
 
-// #include <stdlib.h>
-// #include <pwd.h>
-//import "C"
-
 import (
 	"bytes"
 	"encoding/binary"
@@ -58,20 +54,6 @@ type UserInfo struct {
 
 var rsize = unsafe.Sizeof(record{})
 
-/*
-func passwdC2Go(passwdC *C.struct_passwd) *Passwd {
-	return &Passwd{
-		Name:    C.GoString(passwdC.pw_name),
-		Passwd:  C.GoString(passwdC.pw_passwd),
-		Uid:     uint32(passwdC.pw_uid),
-		Gid:     uint32(passwdC.pw_gid),
-		Comment: C.GoString(passwdC.pw_gecos),
-		Home:    C.GoString(passwdC.pw_dir),
-		Shell:   C.GoString(passwdC.pw_shell),
-	}
-}
-*/
-
 func UserLoginEvent(uobject *UserInfo) {
 	//generating alert for user login
 	var inc alertmon.Incident = alertmon.Incident{
@@ -113,16 +95,6 @@ func TrackUserLogin(TimeInterval int) {
 	}
 	size := stats.Size()
 
-	/*
-		passwds := make([]*Passwd, 0)
-		C.setpwent()
-		for passwdC, err := C.getpwent(); passwdC != nil && err == nil; passwdC, err = C.getpwent() {
-			passwd := passwdC2Go(passwdC)
-			passwds = append(passwds, passwd)
-		}
-		C.endpwent()
-	*/
-
 	passwds := GetUserInfo(1)
 
 	for _, p := range passwds {
@@ -143,7 +115,7 @@ func TrackUserLogin(TimeInterval int) {
 				Host: host,
 				Last: lastlog,
 			}
-			//log.Printf("%#v", info)
+
 			diff := TimeDiff(info)
 			TimeIntervalInMillis := TimeInterval * 1000
 			if diff < TimeIntervalInMillis && diff > 0 {

@@ -2,14 +2,15 @@ package cmdmon
 
 import (
 	"strings"
-	"go.uber.org/zap"
-	"github.com/xFaraday/gomomento/alertmon"
+
+	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/webmon"
+	"go.uber.org/zap"
 )
 
 type SuspiciousCmd struct {
-	RanCommand	string
-	MatchedKeyword	string
+	RanCommand     string
+	MatchedKeyword string
 }
 
 // search command for common obfuscation/evasion techniques
@@ -78,7 +79,7 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 		"invoke-webrequest",
 		"reflection",
 	}
-	
+
 	if len(cmd) != 0 {
 		for _, knownParam := range suspiciousCLParams {
 			lowerCaseKnownParam := strings.ToLower(knownParam)
@@ -89,14 +90,14 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 				zlog := zap.S().With(
 					"REASON:", "Suspicious Command Ran",
 					"Command Ran:", lowerCaseCmd,
-					"Matched Keyword:", lowerCaseKnownParam
-					)
+					"Matched Keyword:", lowerCaseKnownParam,
+				)
 				zlog.Warn("Suspicious Command Ran")
 				//gen alert
 				var inc alertmon.Incident = alertmon.Incident{
 					Name:     "Suspicious Command Ran",
 					User:     "",
-					Process:  ""
+					Process:  "",
 					RemoteIP: "",
 					Cmd:      lowerCaseCmd,
 				}
@@ -141,7 +142,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 		"ansible-playbook",
 		"curl",
 		"wget",
-		"alias", 
+		"alias",
 		"dd",
 		"linpeas",
 		"getfacl",
@@ -188,7 +189,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 		"as",
 		"ascii-xfr",
 		"ascii85",
-		"ash", 
+		"ash",
 		"aspell",
 		"at",
 		"atobm",
@@ -241,14 +242,14 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 				zlog := zap.S().With(
 					"REASON:", "Suspicious Command Ran",
 					"Command Ran:", lowerCaseCmd,
-					"Matched Keyword:", lowerCaseKnownCmd
-					)
+					"Matched Keyword:", lowerCaseKnownCmd,
+				)
 				zlog.Warn("Suspicious Command Ran")
 				//gen alert
 				var inc alertmon.Incident = alertmon.Incident{
 					Name:     "Suspicious Command Ran",
 					User:     "",
-					Process:  ""
+					Process:  "",
 					RemoteIP: "",
 					Cmd:      lowerCaseCmd,
 				}
@@ -268,20 +269,20 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 	}
 	return SuspiciousCmd{"", ""}
 	/*
-	returnstring := ""
-	pcmd := strings.Fields(cmd)
-	for _, s := range commands {
-		if len(pcmd) != 0 {
-			
-			if pcmd[0] == s {
-				println("Match: " + s)
-				println("Full: " + cmd)
-				returnstring = cmd
+		returnstring := ""
+		pcmd := strings.Fields(cmd)
+		for _, s := range commands {
+			if len(pcmd) != 0 {
+
+				if pcmd[0] == s {
+					println("Match: " + s)
+					println("Full: " + cmd)
+					returnstring = cmd
+				} else {
+					returnstring = "no"
+				}
 			} else {
 				returnstring = "no"
 			}
-		} else {
-			returnstring = "no"
-		}
-	return returnstring*/
+		return returnstring*/
 }
