@@ -70,7 +70,7 @@ func EstablishDeceptions() {
 func RetrieveConfig(configlocation string) {
 	//make a webrequest to the server to retrieve the config file
 	//and store it in /opt/memento/config.json
-
+	
 }
 
 func VerifiyRunIntegrity() {
