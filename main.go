@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/robfig/cron"
 	"github.com/xFaraday/gomemento/config"
@@ -14,6 +15,8 @@ import (
 	"github.com/xFaraday/gomemento/netmon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
+	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/cmdmon"
 )
 
 func ArtifactHunt() {
@@ -115,6 +118,25 @@ func main() {
 		frontend.QuickInterface()
 	case 31337:
 		ccdc()
+	case 69:
+		// get cmd hist & run cmdmon
+		// attacker may install another shell & not set it as default in order to evade detection, TODO: Determine if other shells are installed but not set as default & examine those
+		shell := common.GetShell()
+		homeDir := common.GetHomeDir()
+		homeDirSplit := strings.Split(homeDir, "/")
+		// TODO: modify so we can loop through each user & examine their hist file
+		username := homeDirSplit[len(homeDirSplit)-1]
+		fmt.Println("[+] Shell: " + shell)
+		fmt.Println("[+] Home directory: " + homeDir)
+		fmt.Println("[+] Username: " + username)
+
+		histFilePath := common.GetHistFile(username, shell, strings.Split(homeDir, "\n")[0])
+		fmt.Println("[+] Hist file path: " + histFilePath)
+		histFileData := common.OpenFile(histFilePath)
+		for _, cmd := range histFileData {
+			fmt.Println("[+] Examining " + cmd)
+			cmdmon.FindDeviousCmd(cmd)
+		}
 	default:
 		usage()
 		os.Exit(1)

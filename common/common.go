@@ -6,6 +6,8 @@ import (
 	"encoding/base64"
 	"io"
 	"os"
+	"strings"
+	"os/exec"
 
 	"github.com/klauspost/compress/zstd"
 )
@@ -95,20 +97,32 @@ func Decompress(in io.Reader, out io.Writer) error {
 func GetHistFile(username string, shellname string, homedir string) string {
 	// for the future, refernce the $HISTFILE variable for each users env
 	switch {
-	case shellname == "bash" || shellname == "sh":
+	case strings.Contains(shellname, "bash") || strings.Contains(shellname, "sh"):
 		shellpathfull := homedir + "/.bash_history"
 		return shellpathfull
-	case shellname == "ash":
+	case strings.Contains(shellname, "ash"):
 		shellpathfull := homedir + "/.ash_history"
 		return shellpathfull
-	case shellname == "zsh":
+	case strings.Contains(shellname, "zsh"):
 		shellpathfull := homedir + "/.zsh_history"
 		return shellpathfull
-	case shellname == "fish":
+	case strings.Contains(shellname, "fish"):
 		shellpathfull := homedir + "/.local/share/fish/fish_history"
 		return shellpathfull
 	}
 	return "shell not found"
+}
+
+func GetShell() string {
+	// TODO: Implement error handling for exec.Command
+	shellBytes, _ := exec.Command("bash", "-c", "echo $0").Output()
+	return string(shellBytes)
+}
+
+func GetHomeDir() string {
+	homeDirBytes, _ := exec.Command("bash", "-c", "echo $HOME").Output()
+	return string(homeDirBytes)
+
 }
 
 func OpenFile(file string) []string {
