@@ -3,9 +3,9 @@ package cmdmon
 import (
 	"strings"
 
-	"github.com/xFaraday/gomemento/alertmon"
-	"github.com/xFaraday/gomemento/webmon"
-	"go.uber.org/zap"
+	//"github.com/xFaraday/gomemento/alertmon"
+	//"github.com/xFaraday/gomemento/webmon"
+	//"go.uber.org/zap"
 )
 
 type SuspiciousCmd struct {
@@ -87,7 +87,7 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 			if strings.Contains(lowerCaseCmd, lowerCaseKnownParam) {
 				//fmt.Println("[+] Potentially malicious command found:" + cmd)
 				//fmt.Println("[+] Keyword match:" + lowerCaseKnownParam
-				zlog := zap.S().With(
+				/*zlog := zap.S().With(
 					"REASON:", "Suspicious Command Ran",
 					"Command Ran:", lowerCaseCmd,
 					"Matched Keyword:", lowerCaseKnownParam,
@@ -109,7 +109,7 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 					Host:     hostname,
 					Incident: inc,
 				}
-				webmon.IncidentAlert(alert)
+				webmon.IncidentAlert(alert)*/
 				return SuspiciousCmd{cmd, lowerCaseKnownParam}
 			}
 		}
@@ -240,7 +240,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 			if strings.Contains(lowerCaseCmd, lowerCaseKnownCmd) {
 				//fmt.Println("[!] Potential malicious command found. Ran command: " + lowerCaseCmd)
 				//fmt.Println("[!] Matched known malicious command: " + lowerCaseKnownCmd)
-				zlog := zap.S().With(
+				/*zlog := zap.S().With(
 					"REASON:", "Suspicious Command Ran",
 					"Command Ran:", lowerCaseCmd,
 					"Matched Keyword:", lowerCaseKnownCmd,
@@ -262,7 +262,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 					Host:     hostname,
 					Incident: inc,
 				}
-				webmon.IncidentAlert(alert)
+				webmon.IncidentAlert(alert)*/
 
 				return SuspiciousCmd{cmd, lowerCaseKnownCmd}
 			}
