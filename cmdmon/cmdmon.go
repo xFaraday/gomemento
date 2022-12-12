@@ -144,6 +144,7 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 		"wget",
 		"alias",
 		"dd",
+		"unset",
 		"linpeas",
 		"getfacl",
 		"setfacl",
