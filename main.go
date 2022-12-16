@@ -114,6 +114,13 @@ func main() {
 	case 9:
 		IP := config.GetSerialScripterIP()
 		println(IP)
+	case 10: // tampering detection for following files: /var/run/utmp, /var/log/wtmp/, /var/log/btmp
+		badLoginFileSlice := logmon.FindBadLoginFile()
+		for _, file := range badLoginFileSlice {
+			logmon.DetectTampering(file)
+		}
+	case 11: // run faillog on all users on system, if the failure count exceeds 3, send alert
+		logmon.ReportFailedLoginCount("all") 
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
