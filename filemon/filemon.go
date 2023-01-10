@@ -21,6 +21,12 @@ var (
 	indexfile     = "/opt/memento/index.safe"
 )
 
+/*
+	Add edge case check in VerifyFiles() to see if the file has been deleted
+		- if so, unzip compressed file back to original spot
+		- if not, proceed as normal
+*/
+
 func GetDiff(file, storepath string) string {
 	if common.IsHumanReadable(file) {
 		cmdout, err := exec.Command("diff", "--unified", storepath, file).CombinedOutput()
@@ -54,6 +60,23 @@ func VerifyFiles() {
 			m[3] = splittysplit[3]
 			//hash
 			m[4] = splittysplit[4]
+
+			if _, err := os.Stat(m[0]); err != nil {
+				if os.IsNotExist(err) {
+					CompressedBackup := dirforbackups + m[2]
+					tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
+					RevertCompressedFile, _ := os.Open(CompressedBackup)
+					common.Decompress(RevertCompressedFile, tmpcmpfile)
+					oGfile, _ := os.Create(m[0])
+
+					zap.S().Warn("File:" + m[0] + " has been deleted, restoring from backup")
+
+					OverWriteModifiedFile(oGfile.Name(), tmpcmpfile.Name())
+					os.Remove(tmpcmpfile.Name())
+				} else {
+					panic(err)
+				}
+			}
 
 			fCurrentStats := common.CheckFile(m[0])
 			if fCurrentStats.Hash != m[4] {
