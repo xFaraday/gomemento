@@ -78,6 +78,16 @@ func UpdateNetworkIndex(constore []string) {
 	//add other logic to analyze the networkprof.safe file against constore and update it
 }
 
+func FFTAlgo() {
+	//basic Kernel wdswdwa
+	//1 2 1
+	//2 4 2
+	//1 2 1
+	var Kernel [3][3]int = [3][3]int{{1, 2, 1},{2, 4, 2},{1, 2, 1}}
+
+}
+
+
 func FirstTest(conn string) {
 	//FirstTest consists of:
 	//1. Check if the remote IP is a private IP
