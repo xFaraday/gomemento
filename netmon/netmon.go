@@ -46,7 +46,66 @@ red team asses lol.
 - - perhaps the ExactMatch...etc functions should return the new value of the counter itself.  Then
 if statements would not have to be used in the main function and scope can be retained properly
 
+
+2-23
+- new way to store things. Much better on the eyes.  Please implement |-:-| as the delimiter
+instead of -:-.
+
+- Experiment with line 129.  Specifically the use of ElimateDuplicate.  It might stop all counter
+values from incrementing without some adjustment.  Also is it the most statistically relevant
+to get rid of duplicates at this stage? Or should it be done before the counters are incremented?
 */
+
+func DuplicateCheck(constore []string, file []string) []string {
+	for _, conn := range file {
+		conn1split := strings.Split(conn, "-:-")
+		for i, conn2 := range constore {
+			conn2split := strings.Split(conn2, "-:-")
+			if conn1split[0] == conn2split[0] &&
+				conn1split[1] == conn2split[1] &&
+				conn1split[2] == conn2split[2] &&
+				conn1split[3] == conn2split[3] &&
+				conn1split[4] == conn2split[4] &&
+				conn1split[5] == conn2split[5] {
+				//overwrite last element with element to delete
+				constore[i] = constore[len(constore)-1]
+				//set last element to empty string
+				constore[len(constore)-1] = ""
+				//truncate slice
+				constore = constore[:len(constore)-1]
+				return constore
+			}
+		}
+	}
+	return constore
+}
+
+func ElimateDuplicate(constore []string) []string {
+	stats := common.CheckFile(networkfile)
+	//fmt.Printf("%v", stats)
+	if stats.Size == 0 {
+		return constore
+	} else {
+		//past connections
+		file := common.OpenFile(networkfile)
+		prelen := len(constore)
+		constore = DuplicateCheck(constore, file)
+		postlen := len(constore)
+		/*
+			Basically, if the length of the constore before
+			the check and removal has been made is the same
+			afterwards.  This means that there are no
+			duplicates among the network connections
+			currently taken and the network connections
+			stored in the networkprof.safe file.
+		*/
+		if prelen == postlen {
+			return constore
+		} else {
+			return ElimateDuplicate(constore)
+		}
+	}
+}
 
 func UpdateNetworkIndex(constore []string) {
 	stats := common.CheckFile(networkfile)
@@ -69,7 +128,7 @@ func UpdateNetworkIndex(constore []string) {
 			panic(err)
 		}
 		defer file.Close()
-		for _, str := range constorePost {
+		for _, str := range ElimateDuplicate(constorePost) {
 			if len(str) > 1 {
 				file.WriteString(str + "\n")
 			}
@@ -84,9 +143,8 @@ func FFTAlgo() {
 	//2 4 2
 	//1 2 1
 	//var Kernel [3][3]int = [3][3]int{{1, 2, 1},{2, 4, 2},{1, 2, 1}}
-	
-}
 
+}
 
 func FirstTest(conn string) {
 	//FirstTest consists of:
@@ -115,6 +173,7 @@ func ExactMatch(conn1 []string, conn2 []string) string {
 		numint++
 		return strconv.Itoa(numint)
 	}
+	println("ExactMatch")
 	return conn1[6]
 }
 
@@ -125,6 +184,7 @@ func SameRemoteIP(conn1 []string, conn2 []string) string {
 		numint++
 		return strconv.Itoa(numint)
 	}
+	println("SameRemoteIP")
 	return conn1[7]
 }
 
@@ -135,7 +195,19 @@ func SameLocalIP(conn1 []string, conn2 []string) string {
 		numint++
 		return strconv.Itoa(numint)
 	}
+	println("SameLocalIP")
 	return conn1[8]
+}
+
+func SameProcess(conn1 []string, conn2 []string) string {
+	if conn1[4] == conn2[4] &&
+		conn1[5] == conn2[5] {
+		numint, _ := strconv.Atoi(conn1[9])
+		numint++
+		return strconv.Itoa(numint)
+	}
+	println("SameProcess")
+	return conn1[9]
 }
 
 func AnalyzeNetworkConnsPost(constore []string) []string {
@@ -177,6 +249,7 @@ func AnalyzeNetworkConnsPost(constore []string) []string {
 				numExact    = "9"
 				numRemoteIP = "9"
 				numLocalIP  = "9"
+				numProcess  = "9"
 			)
 
 			numExact = ExactMatch(isplit, jsplit)
@@ -184,7 +257,9 @@ func AnalyzeNetworkConnsPost(constore []string) []string {
 			numRemoteIP = SameRemoteIP(isplit, jsplit)
 
 			numLocalIP = SameLocalIP(isplit, jsplit)
-			constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + numExact + "-:-" + numRemoteIP + "-:-" + numLocalIP
+
+			numProcess = SameProcess(isplit, jsplit)
+			constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + numExact + "-:-" + numRemoteIP + "-:-" + numLocalIP + "-:-" + numProcess
 		}
 	}
 	//print out
@@ -217,13 +292,18 @@ func AnalyzeNetworkConnsPre(constore []string) {
 				numExact    = "9"
 				numRemoteIP = "9"
 				numLocalIP  = "9"
+				numProcess  = "9"
 			)
+
 			numExact = ExactMatch(isplit, jsplit)
 
 			numRemoteIP = SameRemoteIP(isplit, jsplit)
 
 			numLocalIP = SameLocalIP(isplit, jsplit)
-			constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + numExact + "-:-" + numRemoteIP + "-:-" + numLocalIP
+
+			numProcess = SameProcess(isplit, jsplit)
+
+			constore[i] = isplit[0] + "-:-" + isplit[1] + "-:-" + isplit[2] + "-:-" + isplit[3] + "-:-" + isplit[4] + "-:-" + isplit[5] + "-:-" + numExact + "-:-" + numRemoteIP + "-:-" + numLocalIP + "-:-" + numProcess
 			//println("NEW CONSTORE")
 			//println(constore[i])
 			//println("")
@@ -255,7 +335,7 @@ func GetNetworkSurfing() {
 
 	var constore []string
 	for c := cs.Next(); c != nil; c = cs.Next() {
-		newindexstr := c.LocalAddress.String() + "-:-" + strconv.Itoa(int(c.LocalPort)) + "-:-" + c.RemoteAddress.String() + "-:-" + strconv.Itoa(int(c.RemotePort)) + "-:-" + c.Name + "-:-" + strconv.Itoa(int(c.PID)) + "-:-" + "0" + "-:-" + "0" + "-:-" + "0"
+		newindexstr := c.LocalAddress.String() + "-:-" + strconv.Itoa(int(c.LocalPort)) + "-:-" + c.RemoteAddress.String() + "-:-" + strconv.Itoa(int(c.RemotePort)) + "-:-" + c.Name + "-:-" + strconv.Itoa(int(c.PID)) + "-:-" + "0" + "-:-" + "0" + "-:-" + "0" + "-:-" + "0"
 		constore = append(constore, newindexstr)
 	}
 	AnalyzeNetworkConnsPre(constore)
