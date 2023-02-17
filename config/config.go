@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"os"
 )
 
@@ -64,6 +65,25 @@ func GetSerialScripterIP() string {
 		fmt.Println("error:", err)
 	}
 	return configuration.Apis.SerialScripter.IP
+}
+
+func MakeConfig(API string, IPofServ string, UA string) {
+	/*config := Configuration{
+		Apis: {
+			Kaspersky: {
+				APIKey: API,
+			},
+			SerialScripter: {
+				IP:        IPofServ,
+				UserAgent: UA,
+		},
+	}*/
+	config := &Configuration{}
+	config.Apis.Kaspersky.APIKey = API
+	config.Apis.SerialScripter.IP = IPofServ
+	config.Apis.SerialScripter.UserAgent = UA
+	file, _ := json.MarshalIndent(config, "", " ")
+	_ = ioutil.WriteFile(CONFIG_LOC, file, 0644)
 }
 
 /*

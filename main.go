@@ -81,13 +81,23 @@ func main() {
 		file           string
 		overwrite      bool
 		configlocation string
+		APIKey         string
+		IP             string
+		UserAgent      string
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
 	flag.IntVar(&mode, "mode", 0, "Mode to run in. 1 = cmd history check, 2 = file store, 3 = verify files, 4 = process check")
 	flag.BoolVar(&overwrite, "overwrite", true, "Specify overwrite flag to overwrite existing backup")
 	flag.StringVar(&configlocation, "config web location", "https://raw.githubusercontent.com/xFaraday/gomemento/master/config/config.json", "Specify the location of the config file Ex: https://webserverIP/config.json")
+	flag.StringVar(&APIKey, "api", "", "Specify the API key for authenticating to kaspersky")
+	flag.StringVar(&IP, "IP", "", "Specify the IP address of the server")
+	flag.StringVar(&UserAgent, "ua", "", "Specify the user agent for the server")
 	flag.Parse()
+
+	if APIKey != "" || IP != "" || UserAgent != "" {
+		config.MakeConfig(APIKey, IP, UserAgent)
+	}
 
 	if len(os.Args) <= 1 {
 		usage()
