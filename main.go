@@ -7,16 +7,17 @@ import (
 	"strings"
 
 	"github.com/robfig/cron"
+	"github.com/xFaraday/gomemento/cmdmon"
+	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/config"
 	"github.com/xFaraday/gomemento/filemon"
 	"github.com/xFaraday/gomemento/frontend"
 	"github.com/xFaraday/gomemento/hookmon"
 	"github.com/xFaraday/gomemento/logmon"
 	"github.com/xFaraday/gomemento/netmon"
+	"github.com/xFaraday/gomemento/permon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
-	"github.com/xFaraday/gomemento/common"
-	"github.com/xFaraday/gomemento/cmdmon"
 )
 
 func ArtifactHunt() {
@@ -120,7 +121,9 @@ func main() {
 			logmon.DetectTampering(file)
 		}
 	case 11: // run faillog on all users on system, if the failure count exceeds 3, send alert
-		logmon.ReportFailedLoginCount("all") 
+		logmon.ReportFailedLoginCount("all")
+	case 12:
+		permon.FilePermCheck()
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
