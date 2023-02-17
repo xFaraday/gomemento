@@ -11,7 +11,10 @@ import (
 
 	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/webmon"
+	"github.com/xFaraday/gomemento/common"
 	"go.uber.org/zap"
+	"os/exec"
+	"io/ioutil"
 )
 
 /*
@@ -21,6 +24,10 @@ for now just scan with yara and upload to kapersky
 to determine if maliscious or now.  Also run through
 the command list.
 */
+
+var (
+	kApiKey = "Z+OGCIQ5T2mPLcc0m9AAoA=="
+)
 
 type ProcSnapshot struct {
 	Procs []Proc
@@ -309,5 +316,51 @@ func ProcMon() {
 			}
 			webmon.IncidentAlert(alert)
 		}
+	}
+}
+
+
+func KillProc(pid int) {
+	
+	// dump memory of specified process, send to kaspersky API, kill process
+	// generating dump doesn't work
+	// dumpProcessMemory(pid)
+	cmd := "gcore -o file.bin " + strconv.Itoa(pid)
+	_, _ = exec.Command("bash", "-c", cmd).Output()
+	filename := "file.bin." + strconv.Itoa(pid)
+	fhandle, _ := os.Open(filename)
+	
+
+	// kaspersky api
+	common.UploadFile("https://opentip.kaspersky.com/api/v1/scan/file?filename=", fhandle, kApiKey)
+	//UploadFile(url string, file *os.File, apikey string)
+
+	// kill process
+	err := syscall.Kill(pid, syscall.SIGKILL)
+	if err != nil {
+		// get process name
+		processPath, _ := ioutil.ReadFile("/proc/" + string(pid) + "/cmdline")
+		// send alert to web server that process couldn't be killed
+		zlog := zap.S().With(
+			"REASON:", "Failed to kill process",
+			"pid:", pid,
+			"process path:", string(processPath),
+			"Error:", err.Error(),
+		)
+		zlog.Warn("Failed to kill specified process")
+		var inc alertmon.Incident = alertmon.Incident{
+			Name:	"Failed to kill specified process",
+			User:	"",
+			Process: string(processPath),
+			RemoteIP: "",
+			Cmd:	"",
+		}
+		IP := webmon.GetIP()
+		hostname := "host-" + strings.Split(IP, ".")[3]
+		var alert alertmon.Alert = alertmon.Alert{
+			Host:	hostname,
+			Incident: inc,
+		}
+		webmon.IncidentAlert(alert)
 	}
 }
