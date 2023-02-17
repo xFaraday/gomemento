@@ -8,7 +8,9 @@ import (
 	"os"
 	"strings"
 	"os/exec"
-
+	"bytes"
+	"mime/multipart"
+	"net/http"
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -191,4 +193,45 @@ func IsHumanReadable(file string) bool {
 		}
 	}
 	return true
+}
+
+// Use to interact with Kaspersky API
+func UploadFile(url string, file *os.File, apikey string) error {
+	var b bytes.Buffer
+    w := multipart.NewWriter(&b)
+
+    // Create a new form file using the file's name and add it to the multipart writer
+    fw, err := w.CreateFormFile("file", file.Name())
+    if err != nil {
+        return err
+    }
+
+    // Copy the file's contents to the form file
+    _, err = io.Copy(fw, file)
+    if err != nil {
+        return err
+    }
+
+    // Close the multipart writer to finalize the form data
+    w.Close()
+
+    // Create a new HTTP request with the multipart/form-data as the request body
+    req, err := http.NewRequest("POST", url, &b)
+    if err != nil {
+        return err
+    }
+
+    // Set the Content-Type header to indicate that the request body is a multipart/form-data
+    req.Header.Set("Content-Type", w.FormDataContentType())
+	req.Header.Add("x-api-key", apikey)
+
+    // Send the HTTP request and get the response
+    client := http.DefaultClient
+    _, err = client.Do(req)
+    if err != nil {
+        return err
+    }
+
+
+    return nil
 }
