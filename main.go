@@ -15,7 +15,7 @@ import (
 	"github.com/xFaraday/gomemento/hookmon"
 	"github.com/xFaraday/gomemento/logmon"
 	"github.com/xFaraday/gomemento/netmon"
-	"github.com/xFaraday/gomemento/permon"
+	"github.com/xFaraday/gomemento/permmon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
 )
@@ -123,7 +123,7 @@ func main() {
 	case 11: // run faillog on all users on system, if the failure count exceeds 3, send alert
 		logmon.ReportFailedLoginCount("all")
 	case 12:
-		permon.FilePermCheck()
+		permmon.FilePermCheck()
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
