@@ -71,6 +71,23 @@ func VerifyFiles() {
 
 					zap.S().Warn("File:" + m[0] + " has been deleted, restoring from backup")
 
+					var inc alertmon.Incident = alertmon.Incident{
+						Name:     "FILE DELETED: " +m[0],
+						User:     "",
+						Process:  "", //maybe fill this later?
+						RemoteIP: "",
+						Cmd:      "",
+					}
+
+					IP := webmon.GetIP()
+					hostname := "host-" + strings.Split(IP, ".")[3]
+
+					var alert alertmon.Alert = alertmon.Alert{
+						Host:     hostname,
+						Incident: inc,
+					}
+					webmon.IncidentAlert(alert)
+
 					OverWriteModifiedFile(oGfile.Name(), tmpcmpfile.Name())
 					os.Remove(tmpcmpfile.Name())
 				} else {
@@ -98,6 +115,23 @@ func VerifyFiles() {
 					)
 					zlog.Warn("File has been modified, diff below")
 				}
+
+				var inc alertmon.Incident = alertmon.Incident{
+					Name:     "FILE MODIFIED: " +m[0],
+					User:     "",
+					Process:  "", //maybe fill this later?
+					RemoteIP: "",
+					Cmd:      "",
+				}
+
+				IP := webmon.GetIP()
+				hostname := "host-" + strings.Split(IP, ".")[3]
+
+				var alert alertmon.Alert = alertmon.Alert{
+					Host:     hostname,
+					Incident: inc,
+				}
+				webmon.IncidentAlert(alert)
 
 				//actions once the difference is logged
 				OverWriteModifiedFile(m[0], tmpcmpfile.Name())

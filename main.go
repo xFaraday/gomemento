@@ -20,36 +20,32 @@ import (
 	"github.com/xFaraday/gomemento/usermon"
 )
 
-func ArtifactHunt() {
-	/*
-		to be run after FindDeviousCmd returns positive.
-		scans file system for interesting artifacts. Like a ssh key being added to
-		AuthorizedKeys file.
-		Analyze Cron as well
-
-		One idea might be taking the process id of the maliscious cmd and then listing
-		open files.  Analyze the open files for interesting artifacts.
-
-
-	*/
-
-}
-
-func ccdc() {
+func JumpStart() {
 	hookmon.EstablishDeceptions()
 
-	filemon.JumpStart()
+	filemon.RestoreController("/etc/passwd", true)
+	filemon.RestoreController("/etc/shadow", true)
+	filemon.RestoreController("/etc/group", true)
+	filemon.RestoreController("/etc/ssh/", true)
+	filemon.RestoreController("/etc/sudoers", true)
+	filemon.RestoreController("/etc/crontab", true)
+	filemon.RestoreController("/etc/cron.d/", true)
+	filemon.RestoreController("/etc/cron.daily/", true)
+	filemon.RestoreController("/etc/cron.hourly/", true)
+	filemon.RestoreController("/etc/cron.monthly/", true)
+	filemon.RestoreController("/etc/cron.weekly/", true)
+	filemon.RestoreController("/etc/pam.conf", true)
+	filemon.RestoreController("/etc/pam.d/", true)
+	filemon.RestoreController("/etc/hosts", true)
+	filemon.RestoreController("/etc/resolv.conf", true)
 
-	EstablishPersistence()
-}
-
-func EstablishPersistence() {
-	/*
-		Establish cronjob for now, maybe look into getting some type of systemd service?
-	*/
-	c := cron.New()
-	c.AddFunc("@every 2m", filemon.VerifyFiles)
-	c.Start()
+	go HeartBeatCall
+	go VerifyFilesCall
+	go ProcMonCall
+	go VerifiyRunIntegrityCall
+	go TrackUserLoginCall
+	go FilePermCheckCall
+	go NetworkSurfingCall 
 }
 
 func usage() {
@@ -67,6 +63,64 @@ func usage() {
 	println("\t\t./gomemento --mode=4")
 	println("\n")
 }
+
+func VerifyFilesCall() {
+	ticker := time.NewTicker(2 * time.Minute)
+
+	for _ = range ticker.C {
+		filemon.VerifyFiles()
+	}
+}
+
+func HeartBeatCall() {
+	ticker := time.NewTicker(1 * time.Minute)
+
+	for _ = range ticker.C {
+		webmon.HeartBeat()
+	}
+}
+
+func ProcMonCall() {
+	ticker := time.NewTicker(2 * time.Minute)
+
+	for _ = range ticker.C {
+		procmon.ProcMon()
+	}
+}
+
+func VerifiyRunIntegrityCall() {
+	ticker := time.NewTicker(5 * time.Minute)
+
+	for _ = range ticker.C {
+		hookmon.VerifiyRunIntegrity()
+	}	
+}
+
+func TrackUserLoginCall() {
+	ticker := time.NewTicker(30 * time.Second)
+
+	for _ = range ticker.C {
+		usermon.TrackUserLogin(30)
+	}
+}
+
+func FilePermCheckCall() {
+	ticker := time.NewTicker(1 * time.Minute)
+
+	for _ = range ticker.C {
+		permmon.FilePermCheck()
+	}
+}
+
+func NetworkSurfingCall() {
+	ticker := time.NewTicker(1 * time.Minute)
+
+	for _ = range ticker.C {
+		netmon.GetNetworkSurfing()
+	}
+}
+
+//add command history
 
 func main() {
 	if os.Getegid() != 0 {
@@ -106,11 +160,13 @@ func main() {
 
 	switch mode {
 	case 1:
-		filemon.JumpStart()
+		//filemon.JumpStart()
+		println("bruh no mode 1 :(")
 	case 2:
 		filemon.RestoreController(file, overwrite)
 	case 3:
 		filemon.VerifyFiles()
+		//go VerifyFilesCall()
 	case 4:
 		procmon.ProcMon()
 	case 5:
@@ -137,7 +193,7 @@ func main() {
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
-		ccdc()
+		JumpStart()
 	case 69:
 		// get cmd hist & run cmdmon
 		// attacker may install another shell & not set it as default in order to evade detection, TODO: Determine if other shells are installed but not set as default & examine those
