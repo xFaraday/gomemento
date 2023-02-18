@@ -13,6 +13,8 @@ import (
 
 	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/hookmon"
+	"github.com/xFaraday/gomemento/webmon"
+	"github.com/xFaraday/gomemento/alertmon"
 	"go.uber.org/zap"
 )
 
