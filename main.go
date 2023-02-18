@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 	"time"
-	
-	"github.com/robfig/cron"
+	"sync"
+
 	"github.com/xFaraday/gomemento/cmdmon"
 	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/config"
@@ -41,6 +41,8 @@ func JumpStart() {
 	filemon.RestoreController("/etc/hosts", true)
 	filemon.RestoreController("/etc/resolv.conf", true)
 
+	var wg sync.WaitGroup
+	wg.Add(7)
 	go HeartBeatCall()
 	go VerifyFilesCall()
 	go ProcMonCall()
@@ -48,6 +50,7 @@ func JumpStart() {
 	go TrackUserLoginCall()
 	go FilePermCheckCall()
 	go NetworkSurfingCall()
+	wg.Wait()
 }
 
 func usage() {
@@ -177,7 +180,6 @@ func main() {
 		usermon.TrackUserLogin(30)
 	case 7:
 		hookmon.EstablishDeceptions()
-		EstablishPersistence()
 	case 8:
 		hookmon.VerifiyRunIntegrity()
 	case 9:
