@@ -24,7 +24,13 @@ type finfo struct {
 func CheckFile(name string) finfo {
 	fileInfo, err := os.Stat(name)
 	if err != nil {
-		panic(err)
+		i := finfo{
+			Name: "",
+			Size: 0,
+			Time: "",
+			Hash: "",
+		}
+		return i
 	}
 	println(name)
 	if fileInfo.IsDir() {
@@ -124,7 +130,6 @@ func GetShell() string {
 func GetHomeDir() string {
 	homeDirBytes, _ := exec.Command("bash", "-c", "echo $HOME").Output()
 	return string(homeDirBytes)
-
 }
 
 func OpenFile(file string) []string {
