@@ -5,7 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-
+	"time"
+	
 	"github.com/robfig/cron"
 	"github.com/xFaraday/gomemento/cmdmon"
 	"github.com/xFaraday/gomemento/common"
@@ -18,6 +19,7 @@ import (
 	"github.com/xFaraday/gomemento/permmon"
 	"github.com/xFaraday/gomemento/procmon"
 	"github.com/xFaraday/gomemento/usermon"
+	"github.com/xFaraday/gomemento/webmon"
 )
 
 func JumpStart() {
@@ -39,13 +41,13 @@ func JumpStart() {
 	filemon.RestoreController("/etc/hosts", true)
 	filemon.RestoreController("/etc/resolv.conf", true)
 
-	go HeartBeatCall
-	go VerifyFilesCall
-	go ProcMonCall
-	go VerifiyRunIntegrityCall
-	go TrackUserLoginCall
-	go FilePermCheckCall
-	go NetworkSurfingCall 
+	go HeartBeatCall()
+	go VerifyFilesCall()
+	go ProcMonCall()
+	go VerifiyRunIntegrityCall()
+	go TrackUserLoginCall()
+	go FilePermCheckCall()
+	go NetworkSurfingCall()
 }
 
 func usage() {
