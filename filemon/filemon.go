@@ -11,15 +11,15 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/hookmon"
 	"github.com/xFaraday/gomemento/webmon"
-	"github.com/xFaraday/gomemento/alertmon"
 	"go.uber.org/zap"
 )
 
 var (
-	dirforbackups = "/opt/memento/"
+	dirforbackups = "/opt/memento/backups"
 	indexfile     = "/opt/memento/index.safe"
 )
 
@@ -74,7 +74,7 @@ func VerifyFiles() {
 					zap.S().Warn("File:" + m[0] + " has been deleted, restoring from backup")
 
 					var inc alertmon.Incident = alertmon.Incident{
-						Name:     "FILE DELETED: " +m[0],
+						Name:     "FILE DELETED: " + m[0],
 						User:     "",
 						Process:  "", //maybe fill this later?
 						RemoteIP: "",
@@ -119,7 +119,7 @@ func VerifyFiles() {
 				}
 
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "FILE MODIFIED: " +m[0],
+					Name:     "FILE MODIFIED: " + m[0],
 					User:     "",
 					Process:  "", //maybe fill this later?
 					RemoteIP: "",
