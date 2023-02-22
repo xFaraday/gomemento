@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 	"sync"
+	"time"
 
 	"github.com/xFaraday/gomemento/cmdmon"
 	"github.com/xFaraday/gomemento/common"
@@ -18,6 +18,7 @@ import (
 	"github.com/xFaraday/gomemento/netmon"
 	"github.com/xFaraday/gomemento/permmon"
 	"github.com/xFaraday/gomemento/procmon"
+	"github.com/xFaraday/gomemento/servicemon"
 	"github.com/xFaraday/gomemento/usermon"
 	"github.com/xFaraday/gomemento/webmon"
 )
@@ -98,7 +99,7 @@ func VerifiyRunIntegrityCall() {
 
 	for _ = range ticker.C {
 		hookmon.VerifiyRunIntegrity()
-	}	
+	}
 }
 
 func TrackUserLoginCall() {
@@ -195,6 +196,8 @@ func main() {
 	case 12:
 		permmon.FilePermCheck()
 		permmon.UserPermIntegrityCheck()
+	case 13:
+		servicemon.ServiceMonitor(30)
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
