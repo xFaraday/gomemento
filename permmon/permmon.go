@@ -1,9 +1,13 @@
 package permmon
 
 import (
+	"io/ioutil"
 	"os"
 	"strconv"
+	"strings"
 
+	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/usermon"
 	"go.uber.org/zap"
 )
 
@@ -38,6 +42,97 @@ var (
 		PermSnapShot(SystemFiles)
 	}
 */
+func FindUserID() int {
+	var UID []int
+	users := usermon.GetUserInfo(2)
+	for _, user := range users {
+		id, err := strconv.Atoi(user.Userid)
+		if err != nil {
+			panic(err)
+		}
+		UID = append(UID, id)
+	}
+	for i := 1000; i < 2000; i++ {
+		val := common.ContainsInt(UID, i)
+		if val == false {
+			return i
+		}
+	}
+	return 2000
+}
+
+func ChangeID(username string, realid string, homedir string, shellpath string, Userdesc string) {
+	lines := common.OpenFile("/etc/passwd")
+	for i, line := range lines {
+		println(line)
+		if strings.Contains(line, username) {
+			println("found")
+			lines[i] = username + ":x:" + realid + ":" + realid + ":" + Userdesc + ":" + homedir + ":" + shellpath
+			println(lines[i])
+		}
+	}
+	output := strings.Join(lines, "\n")
+	println(output)
+	err := ioutil.WriteFile("/etc/passwd", []byte(output), 0644)
+	if err != nil {
+		panic(err)
+	}
+}
+
+func UserPermIntegrityCheck() {
+	//check if index.safe exists
+	//if not, create it
+	//if yes, compare it to the current state of the system
+	//if there is a difference, log it and reset the permissions
+	users := usermon.GetUserInfo(2)
+	for _, user := range users {
+		if user.Username == "root" {
+			if user.Userid != "0" {
+				zlog := zap.S().With(
+					"REASON:", "User: "+user.Username+" does not have userid 0",
+				)
+				zlog.Warn("USER MODIFIED")
+				ChangeID(user.Username, "0", user.Homedir, user.Shellpathfull, user.Userdesc)
+			}
+			if user.Groupid != "0" {
+				zlog := zap.S().With(
+					"REASON:", "Group: "+user.Username+" does not have groupid 0",
+				)
+				zlog.Warn("USER MODIFIED")
+				ChangeID(user.Username, "0", user.Homedir, user.Shellpathfull, user.Userdesc)
+			}
+		} else {
+			if user.Userid == "0" {
+				zlog := zap.S().With(
+					"REASON:", "User: "+user.Username+" has userid 0",
+				)
+				zlog.Warn("USER MODIFIED")
+				if user.Groupid == "0" {
+					id := FindUserID()
+					idstring := strconv.Itoa(id)
+					ChangeID(user.Username, idstring, user.Homedir, user.Shellpathfull, user.Userdesc)
+				} else if user.Groupid != "0" {
+					println("changing UID by GID")
+					ChangeID(user.Username, user.Groupid, user.Homedir, user.Shellpathfull, user.Userdesc)
+				}
+			}
+			if user.Groupid == "0" {
+				zlog := zap.S().With(
+					"REASON:", "Group: "+user.Username+" has groupid 0",
+				)
+				zlog.Warn("USER MODIFIED")
+				if user.Userid == "0" {
+					id := FindUserID()
+					idstring := strconv.Itoa(id)
+					ChangeID(user.Username, idstring, user.Homedir, user.Shellpathfull, user.Userdesc)
+				} else if user.Userid != "0" {
+					ChangeID(user.Username, user.Userid, user.Homedir, user.Shellpathfull, user.Userdesc)
+				}
+			}
+		}
+	}
+}
+
 func FilePermChangeSingle(file string, perm int) {
 	os.Chmod(file, os.FileMode(perm))
 	zap.S().Info("Reset permissions for: " + file)

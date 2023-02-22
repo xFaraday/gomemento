@@ -194,6 +194,7 @@ func main() {
 		logmon.ReportFailedLoginCount("all")
 	case 12:
 		permmon.FilePermCheck()
+		permmon.UserPermIntegrityCheck()
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:

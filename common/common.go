@@ -2,15 +2,17 @@ package common
 
 import (
 	"bufio"
+	"bytes"
 	"crypto/sha256"
 	"encoding/base64"
 	"io"
-	"os"
-	"strings"
-	"os/exec"
-	"bytes"
 	"mime/multipart"
 	"net/http"
+	"os"
+	"os/exec"
+	"sort"
+	"strings"
+
 	"github.com/klauspost/compress/zstd"
 )
 
@@ -19,6 +21,12 @@ type finfo struct {
 	Size int64
 	Time string
 	Hash string
+}
+
+func ContainsInt(s []int, e int) bool {
+	sort.Ints(s)
+	i := sort.SearchInts(s, e)
+	return i < len(s) && s[i] == e
 }
 
 func CheckFile(name string) finfo {
@@ -203,40 +211,39 @@ func IsHumanReadable(file string) bool {
 // Use to interact with Kaspersky API
 func UploadFile(url string, file *os.File, apikey string) error {
 	var b bytes.Buffer
-    w := multipart.NewWriter(&b)
+	w := multipart.NewWriter(&b)
 
-    // Create a new form file using the file's name and add it to the multipart writer
-    fw, err := w.CreateFormFile("file", file.Name())
-    if err != nil {
-        return err
-    }
+	// Create a new form file using the file's name and add it to the multipart writer
+	fw, err := w.CreateFormFile("file", file.Name())
+	if err != nil {
+		return err
+	}
 
-    // Copy the file's contents to the form file
-    _, err = io.Copy(fw, file)
-    if err != nil {
-        return err
-    }
+	// Copy the file's contents to the form file
+	_, err = io.Copy(fw, file)
+	if err != nil {
+		return err
+	}
 
-    // Close the multipart writer to finalize the form data
-    w.Close()
+	// Close the multipart writer to finalize the form data
+	w.Close()
 
-    // Create a new HTTP request with the multipart/form-data as the request body
-    req, err := http.NewRequest("POST", url, &b)
-    if err != nil {
-        return err
-    }
+	// Create a new HTTP request with the multipart/form-data as the request body
+	req, err := http.NewRequest("POST", url, &b)
+	if err != nil {
+		return err
+	}
 
-    // Set the Content-Type header to indicate that the request body is a multipart/form-data
-    req.Header.Set("Content-Type", w.FormDataContentType())
+	// Set the Content-Type header to indicate that the request body is a multipart/form-data
+	req.Header.Set("Content-Type", w.FormDataContentType())
 	req.Header.Add("x-api-key", apikey)
 
-    // Send the HTTP request and get the response
-    client := http.DefaultClient
-    _, err = client.Do(req)
-    if err != nil {
-        return err
-    }
+	// Send the HTTP request and get the response
+	client := http.DefaultClient
+	_, err = client.Do(req)
+	if err != nil {
+		return err
+	}
 
-
-    return nil
+	return nil
 }

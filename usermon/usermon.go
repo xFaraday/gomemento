@@ -17,12 +17,14 @@ import (
 )
 
 type uinfo struct {
-	Username  string
-	Userid    string
-	Groupid   string
-	Homedir   string
-	Shellpath string
-	ShellVar  string
+	Username      string
+	Userid        string
+	Groupid       string
+	Homedir       string
+	Shellpath     string
+	ShellVar      string
+	Shellpathfull string
+	Userdesc      string
 }
 
 type Uinfosnap struct {
@@ -173,6 +175,7 @@ func GetUserInfo(mode int) []uinfo {
 				username := strsplit[0]
 				userid := strsplit[2]
 				groupid := strsplit[3]
+				userdesc := strsplit[4]
 				homedir := strsplit[5]
 				shellz := strsplit[6]
 				shellsplit := strings.Split(shellz, "/")
@@ -181,12 +184,14 @@ func GetUserInfo(mode int) []uinfo {
 				shellpathfull := common.GetHistFile(username, shellname, homedir)
 
 				u := uinfo{
-					Username:  username,
-					Userid:    userid,
-					Groupid:   groupid,
-					Homedir:   homedir,
-					Shellpath: shellpathfull,
-					ShellVar:  shellname,
+					Username:      username,
+					Userid:        userid,
+					Groupid:       groupid,
+					Homedir:       homedir,
+					Shellpath:     shellpathfull,
+					ShellVar:      shellname,
+					Shellpathfull: shellz,
+					Userdesc:      userdesc,
 				}
 				uinfos = append(uinfos, u)
 			}
@@ -200,19 +205,22 @@ func GetUserInfo(mode int) []uinfo {
 			username := strsplit[0]
 			userid := strsplit[2]
 			groupid := strsplit[3]
+			userdesc := strsplit[4]
 			homedir := strsplit[5]
-			shell := strsplit[6]
-			shellsplit := strings.Split(shell, "/")
+			shellz := strsplit[6]
+			shellsplit := strings.Split(shellz, "/")
 			shellname := shellsplit[len(shellsplit)-1]
 
 			shellpathfull := common.GetHistFile(username, shellname, homedir)
 
 			u := uinfo{
-				Username:  username,
-				Userid:    userid,
-				Groupid:   groupid,
-				Homedir:   homedir,
-				Shellpath: shellpathfull,
+				Username:      username,
+				Userid:        userid,
+				Groupid:       groupid,
+				Homedir:       homedir,
+				Shellpath:     shellpathfull,
+				Shellpathfull: shellz,
+				Userdesc:      userdesc,
 			}
 			uinfos = append(uinfos, u)
 		}
