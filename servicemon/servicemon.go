@@ -33,23 +33,75 @@ type ServiceStats struct {
 	serviceStatus string
 }
 
+// Will/Should use /etc/init.d to find service names <- seems to work for Alpine Linux too (Have to test on Slackware)
+// Then we differentiate between the different system managers to find the status of the service since /sbin/service <service> status output varies between Linux distributions
 func ListServices() []ServiceStats {
-	serviceListOut, _ := exec.Command("bash", "-c", "systemctl list-unit-files --type=service").Output()
-	serviceListSplit := strings.Split(string(serviceListOut), "\n")
+	serviceDir := "/etc/init.d"
+	// Find system manager
+	pstree := exec.Command("pstree")
+	head := exec.Command("head", "-n", "1")
+	pipe, _ := pstree.StdoutPipe()
+	
+	head.Stdin = pipe
+	pstree.Start()
+	
+	systemManagerUnparsed, _ := head.Output()
+	pipe.Close()
+	systemManager := strings.Split(string(systemManagerUnparsed), "-+-")[0]
+	fmt.Println(systemManager + " is being used!")
+
+	dirHandle, err := os.Open(serviceDir)
+	if err != nil {
+		fmt.Println(err)
+	}
+	files, err := dirHandle.Readdir(-1)
+	if err != nil {
+		fmt.Println(err)
+	}
 	services := []ServiceStats{}
-	for _, service := range serviceListSplit {
-		if len(service) != 0 && strings.Contains(service, "unit files listed") != true && strings.Contains(service, "VENDOR PRESET") != true {
-			serviceFields := strings.Fields(service)
-			serviceStruct := ServiceStats{serviceFields[0], serviceFields[1]}
-			/*
-				[0] - Unit file
-				[1] - State
-				[2] - Vendor preset
-			*/
-			services = append(services, serviceStruct)
+	status := ""
+	for _, file := range files { // each file represents a service
+		// differentiate between system managers, then find status of service
+		if systemManager == "systemd" {
+			statusBytes, _ := exec.Command("systemctl", "is-active", file.Name()).Output()
+			status = string(statusBytes)
+		} else if systemManager == "init" {
+			statusOut, _ := exec.Command("service", file.Name(), "status").Output()
+			statusSplit := strings.Split(string(statusOut), ":")
+			status = statusSplit[len(statusSplit)-1]
+		} else {
+			fmt.Println("Unaccounted for system manager! HELP!")
+		}
+
+		serviceStruct := ServiceStats{file.Name(), status}
+		services = append(services, serviceStruct)
+	}
+	dirHandle.Close()
+	return services
+}
+
+// Take a service config file with whitelisted services
+// Enumerate each service, determine whether or not it's whitelisted. If not, disable/block it & remove it
+func GetServiceConfig(path string) {
+	// read service file & store whitelisted services in string slice
+	fHandle, _ := os.Open(path)
+	whitelistedServices := []string{}
+	scanner := bufio.NewScanner(fHandle)
+	for scanner.Scan() {
+		whitelistedServices = append(whitelistedServices, scanner.Text())
+	}
+	
+	// enumerate services on system
+	services := ListServices("/etc/init.d")
+	for _, service := range services {
+		if slices.Contains(whitelistedServices, service.serviceName) != true {
+			// non-scored service found, disable it
+			fmt.Println("Non-scored service found: " + service.serviceName)
 		}
 	}
-	return services
+
+	fHandle.Close()
+
 }
 
 // Take service snapshot
