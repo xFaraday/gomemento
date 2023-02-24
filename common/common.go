@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/zcalusic/sysinfo"
 )
 
 type finfo struct {
@@ -27,6 +28,12 @@ func ContainsInt(s []int, e int) bool {
 	sort.Ints(s)
 	i := sort.SearchInts(s, e)
 	return i < len(s) && s[i] == e
+}
+
+func GetDistroVendor() string {
+	var SystemInfo sysinfo.SysInfo
+	SystemInfo.GetSysInfo()
+	return SystemInfo.OS.Vendor
 }
 
 func CheckFile(name string) finfo {

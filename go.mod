@@ -6,8 +6,9 @@ require (
 	github.com/charmbracelet/bubbletea v0.22.1
 	github.com/charmbracelet/lipgloss v0.6.0
 	github.com/klauspost/compress v1.15.11
-	github.com/robfig/cron v1.2.0
 	github.com/weaveworks/procspy v0.0.0-20150706124340-cb970aa190c3
+	github.com/zcalusic/sysinfo v0.9.5
+	go.uber.org/zap v1.24.0
 )
 
 require (
@@ -24,7 +25,6 @@ require (
 	github.com/rivo/uniseg v0.4.2 // indirect
 	go.uber.org/atomic v1.10.0 // indirect
 	go.uber.org/multierr v1.8.0 // indirect
-	go.uber.org/zap v1.24.0 // indirect
 	golang.org/x/sys v0.1.0 // indirect
 	golang.org/x/term v0.1.0 // indirect
 	golang.org/x/text v0.4.0 // indirect

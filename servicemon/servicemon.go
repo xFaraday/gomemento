@@ -9,9 +9,11 @@ import (
 	"os/exec"
 	"strings"
 	"time"
+	//"bufio"
 
 	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/webmon"
+	"github.com/xFaraday/gomemento/common"
 	"go.uber.org/zap"
 )
 
@@ -36,53 +38,117 @@ type ServiceStats struct {
 // Will/Should use /etc/init.d to find service names <- seems to work for Alpine Linux too (Have to test on Slackware)
 // Then we differentiate between the different system managers to find the status of the service since /sbin/service <service> status output varies between Linux distributions
 func ListServices() []ServiceStats {
-	serviceDir := "/etc/init.d"
-	// Find system manager
-	pstree := exec.Command("pstree")
-	head := exec.Command("head", "-n", "1")
-	pipe, _ := pstree.StdoutPipe()
-	
-	head.Stdin = pipe
-	pstree.Start()
-	
-	systemManagerUnparsed, _ := head.Output()
-	pipe.Close()
-	systemManager := strings.Split(string(systemManagerUnparsed), "-+-")[0]
-	fmt.Println(systemManager + " is being used!")
-
-	dirHandle, err := os.Open(serviceDir)
-	if err != nil {
-		fmt.Println(err)
-	}
-	files, err := dirHandle.Readdir(-1)
-	if err != nil {
-		fmt.Println(err)
-	}
 	services := []ServiceStats{}
-	status := ""
-	for _, file := range files { // each file represents a service
-		// differentiate between system managers, then find status of service
-		if systemManager == "systemd" {
-			statusBytes, _ := exec.Command("systemctl", "is-active", file.Name()).Output()
-			status = string(statusBytes)
-		} else if systemManager == "init" {
-			statusOut, _ := exec.Command("service", file.Name(), "status").Output()
-			statusSplit := strings.Split(string(statusOut), ":")
-			status = statusSplit[len(statusSplit)-1]
-		} else {
-			fmt.Println("Unaccounted for system manager! HELP!")
+	osVendor := common.GetDistroVendor()
+	if osVendor == "slackware" {
+		// Gather list of running services from /var/run
+		// Services that are running have .pid extension
+		fmt.Println("Slackware detected...")
+		runningServices := []string{}
+		dirHandle2, err := os.Open("/var/run/")
+		if err != nil {
+			fmt.Println(err)
 		}
+		files, err := dirHandle2.Readdir(-1)
+		if err != nil {
+			fmt.Println(err)
+		}
+		
+		// Add running services to runningServices slice
+		for _, file := range files {
+			if strings.HasSuffix(file.Name(), ".pid") {
+				serviceName := strings.Split(file.Name(), ".")[0]
+				runningServices = append(runningServices, serviceName)
+			}
+		}
+		dirHandle2.Close()
 
-		serviceStruct := ServiceStats{file.Name(), status}
-		services = append(services, serviceStruct)
+		// Gather all services from /etc/rc.d
+		dirHandle, err := os.Open("/etc/rc.d")
+		if err != nil {
+			fmt.Println(err)
+		}
+		files, err = dirHandle.Readdir(-1)
+		if err != nil {
+			fmt.Println(err)
+		}
+		// Loop through each service, determine whether it was present in /var/run dir, if it was it's running
+		//allServices := []ServiceStats{}
+		for _, file := range files {
+			//fmt.Println("Evaluating state of " + file.Name())
+			service := strings.Split(file.Name(), ".")[1]
+			if contains(runningServices, service) == true {
+				serviceStruct := ServiceStats{service, "on"}
+				services = append(services, serviceStruct)
+			} else {
+				serviceStruct := ServiceStats{service, "off"}
+				services = append(services, serviceStruct)
+			}
+		}
+		dirHandle.Close()
+		
+		//fmt.Println(services)
+		return services
+	} else {
+
+		// Find system manager in use
+		pstree := exec.Command("pstree")
+		head := exec.Command("head", "-n", "1")
+		pipe, _ := pstree.StdoutPipe()
+		
+		head.Stdin = pipe
+		pstree.Start()
+		
+		systemManagerUnparsed, _ := head.Output()
+		pipe.Close()
+		systemManager := strings.Split(string(systemManagerUnparsed), "-+-")[0]
+		fmt.Println(systemManager + " is being used!")
+		// serviceDir varies depending on system manager in use & may vary by distro
+		serviceDir := "/etc/init.d"
+		dirHandle, err := os.Open(serviceDir)
+		if err != nil {
+			fmt.Println(err)
+		}
+		files, err := dirHandle.Readdir(-1)
+		if err != nil {
+			fmt.Println(err)
+		}
+		//services := []ServiceStats{}
+		status := ""
+		for _, file := range files { // each file represents a service
+			// differentiate between system managers, then find status of service
+			if systemManager == "systemd" {
+				statusBytes, _ := exec.Command("systemctl", "is-active", file.Name()).Output()
+				status = string(statusBytes)
+			} else if systemManager == "init" {
+				statusOut, _ := exec.Command("service", file.Name(), "status").Output()
+				statusSplit := strings.Split(string(statusOut), ":")
+				status = statusSplit[len(statusSplit)-1]
+			} else {
+				fmt.Println("Unaccounted for system manager! HELP!")
+			}
+
+			serviceStruct := ServiceStats{file.Name(), status}
+			services = append(services, serviceStruct)
+		}
+		dirHandle.Close()
+		//fmt.Println(services)
+		return services
 	}
-	dirHandle.Close()
-	return services
+}
+
+func contains(s []string, str string) bool {
+	for _, v:= range s {
+		if v == str {
+			return true
+		}
+	}
+	return false
 }
 
 // Take a service config file with whitelisted services
 // Enumerate each service, determine whether or not it's whitelisted. If not, disable/block it & remove it
-func GetServiceConfig(path string) {
+/*func GetServiceConfig(path string) {
 	// read service file & store whitelisted services in string slice
 	fHandle, _ := os.Open(path)
 	whitelistedServices := []string{}
@@ -92,7 +158,7 @@ func GetServiceConfig(path string) {
 	}
 	
 	// enumerate services on system
-	services := ListServices("/etc/init.d")
+	services := ListServices()
 	for _, service := range services {
 		if slices.Contains(whitelistedServices, service.serviceName) != true {
 			// non-scored service found, disable it
@@ -102,7 +168,7 @@ func GetServiceConfig(path string) {
 
 	fHandle.Close()
 
-}
+}*/
 
 // Take service snapshot
 // Sleep for specified amount of time

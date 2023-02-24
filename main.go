@@ -221,6 +221,8 @@ func main() {
 			fmt.Println("[+] Examining " + cmd)
 			cmdmon.FindDeviousCmd(cmd)
 		}
+	case 70:
+		fmt.Println(servicemon.ListServices())
 	default:
 		usage()
 		os.Exit(1)
