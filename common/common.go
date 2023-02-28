@@ -84,6 +84,46 @@ func CheckFile(name string) finfo {
 	}
 }
 
+func FindTrueBinary(name string) string {
+	dirgrab, err := os.ReadDir("/bin")
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range dirgrab {
+		if file.Name() == name {
+			return "/bin/" + file.Name()
+		}
+	}
+	dirgrab, err = os.ReadDir("/usr/bin")
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range dirgrab {
+		if file.Name() == name {
+			return "/usr/bin/" + file.Name()
+		}
+	}
+	dirgrab, err = os.ReadDir("/usr/local/bin")
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range dirgrab {
+		if file.Name() == name {
+			return "/usr/local/bin/" + file.Name()
+		}
+	}
+	dirgrab, err = os.ReadDir("/sbin")
+	if err != nil {
+		panic(err)
+	}
+	for _, file := range dirgrab {
+		if file.Name() == name {
+			return "/sbin/" + file.Name()
+		}
+	}
+	return ""
+}
+
 func Compress(in io.Reader, out io.Writer) error {
 	enc, err := zstd.NewWriter(out)
 	if err != nil {
