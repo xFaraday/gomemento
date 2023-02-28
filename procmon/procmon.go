@@ -11,6 +11,7 @@ import (
 
 	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/webmon"
+	"github.com/xFaraday/gomemento/config"
 	"github.com/xFaraday/gomemento/common"
 	"go.uber.org/zap"
 	"os/exec"
@@ -326,7 +327,7 @@ func KillProc(pid int) {
 	filename := "file.bin." + strconv.Itoa(pid)
 	fhandle, _ := os.Open(filename)
 	
-
+	kApiKey := config.GetKaperskyKey()
 	// kaspersky api
 	common.UploadFile("https://opentip.kaspersky.com/api/v1/scan/file?filename=", fhandle, kApiKey)
 	//UploadFile(url string, file *os.File, apikey string)
