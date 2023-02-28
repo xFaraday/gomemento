@@ -9,7 +9,8 @@ import (
 	"log"
 	"net"
 	"net/http"
-
+	"os"
+	"io"
 	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/config"
 )
@@ -21,6 +22,7 @@ type Beat struct {
 var (
 	ssUserAgent = config.GetSerialScripterUserAgent()
 	ssIP        = config.GetSerialScripterIP()
+	SigmaRules  = "https://github.com/SigmaHQ/sigma/archive/refs/tags/0.21.zip"
 )
 
 func GetIP() string {
@@ -99,4 +101,28 @@ func IncidentAlert(alert alertmon.Alert) {
 	}
 
 	defer resp.Body.Close()
+}
+
+func GetSigmaRules() {
+	resp, err := http.Get(SigmaRules)
+    if err != nil {
+        panic(err)
+    }
+    defer resp.Body.Close()
+
+    out, err := os.Create("sigma.zip")
+    if err != nil {
+        panic(err)
+    }
+
+    defer out.Close()
+
+    _, err = io.Copy(out, resp.Body)
+    if err != nil {
+        panic(err)
+    }
+}
+
+func GetYaraRules() {
+
 }
