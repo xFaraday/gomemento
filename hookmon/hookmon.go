@@ -9,8 +9,14 @@ import (
 
 func EstablishDeceptions() {
 	//hide /opt/memento directory
-	lsAlias := "alias ls='ls -I memento --color=auto'\n"
-	loadBashrc := "[[ -f ~/.bashrc ]] && . ~/.bashrc\n"
+	var (
+		lsAlias = "alias ls='ls -I memento --color=auto'\n"
+		loadBashrc = "[[ -f ~/.bashrc ]] && . ~/.bashrc\n"
+		ttygrab = "var=$(tty | cut -d'/' -f3-4)\n"
+		ipgrab = "ip=$(w | grep $var | cut -d' ' -f10)\n"
+		sessionpidgrab = "sessionpid=$(ps -ef | grep $var | cut -d' ' -f10 | tail -n 1)\n"
+		promptline = "PROMPT_COMMAND='logger -i -p local5.info -t bash \"USER:$USER IP:$ip PID:$sessionpid CMD:$(history 1)\"'\n"
+	)
 	println(string(lsAlias))
 
 	users := usermon.GetUserInfo(1)
@@ -44,15 +50,30 @@ func EstablishDeceptions() {
 					panic(err)
 				}
 				f.WriteString(lsAlias)
+				f.WriteString(ttygrab)
+				f.WriteString(ipgrab)
+				f.WriteString(sessionpidgrab)
+				f.WriteString(promptline)
 				defer f.Close()
 			} else {
 				f, err := os.OpenFile(user.Homedir+"/.bashrc", os.O_APPEND|os.O_WRONLY, 0600)
-
 				if err != nil {
 					panic(err)
 				}
 
 				if _, err = f.WriteString(lsAlias); err != nil {
+					panic(err)
+				}
+				if _, err = f.WriteString(ttygrab); err != nil {
+					panic(err)
+				}
+				if _, err = f.WriteString(ipgrab); err != nil {
+					panic(err)
+				}
+				if _, err = f.WriteString(sessionpidgrab); err != nil {
+					panic(err)
+				}
+				if _, err = f.WriteString(promptline); err != nil {
 					panic(err)
 				}
 
