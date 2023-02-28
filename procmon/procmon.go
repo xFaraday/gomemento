@@ -25,10 +25,6 @@ to determine if maliscious or now.  Also run through
 the command list.
 */
 
-var (
-	kApiKey = "Z+OGCIQ5T2mPLcc0m9AAoA=="
-)
-
 type ProcSnapshot struct {
 	Procs []Proc
 }
