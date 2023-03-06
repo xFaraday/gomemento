@@ -144,6 +144,7 @@ func main() {
 		APIKey         string
 		IP             string
 		UserAgent      string
+		YaraRules      string
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
@@ -153,10 +154,11 @@ func main() {
 	flag.StringVar(&APIKey, "api", "", "Specify the API key for authenticating to kaspersky")
 	flag.StringVar(&IP, "IP", "", "Specify the IP address of the server")
 	flag.StringVar(&UserAgent, "ua", "", "Specify the user agent for the server")
+	flag.StringVar(&YaraRules, "yara", "", "Specify the URL to download yara rules file")
 	flag.Parse()
 
-	if APIKey != "" || IP != "" || UserAgent != "" {
-		config.MakeConfig(APIKey, IP, UserAgent)
+	if APIKey != "" || IP != "" || UserAgent != "" || YaraRules != "" {
+		config.MakeConfig(APIKey, IP, UserAgent, YaraRules)
 	}
 
 	if len(os.Args) <= 1 {
@@ -198,6 +200,14 @@ func main() {
 		permmon.UserPermIntegrityCheck()
 	case 13:
 		servicemon.ServiceMonitor(30)
+	case 14:
+		yaracompiler := common.YaraCompile("/home/xfaraday/coding/gomemento/all-yara.yar")
+		if rules, err := yaracompiler.GetRules(); err != nil {
+			fmt.Println(err)
+		} else {
+			files := common.PerformFileScan(rules, "/home/xfaraday/coding/gomemento/notes.txt")
+			fmt.Println(files.Rulename)
+		}
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:

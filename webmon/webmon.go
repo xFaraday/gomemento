@@ -5,14 +5,16 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net"
 	"net/http"
 	"os"
-	"io"
+
 	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/config"
+	"go.uber.org/zap"
 )
 
 type Beat struct {
@@ -23,6 +25,7 @@ var (
 	ssUserAgent = config.GetSerialScripterUserAgent()
 	ssIP        = config.GetSerialScripterIP()
 	SigmaRules  = "https://github.com/SigmaHQ/sigma/archive/refs/tags/0.21.zip"
+	yaraRules   = "/opt/memento/rules.yar"
 )
 
 func GetIP() string {
@@ -105,24 +108,48 @@ func IncidentAlert(alert alertmon.Alert) {
 
 func GetSigmaRules() {
 	resp, err := http.Get(SigmaRules)
-    if err != nil {
-        panic(err)
-    }
-    defer resp.Body.Close()
+	if err != nil {
+		panic(err)
+	}
+	defer resp.Body.Close()
 
-    out, err := os.Create("sigma.zip")
-    if err != nil {
-        panic(err)
-    }
+	out, err := os.Create("sigma.zip")
+	if err != nil {
+		panic(err)
+	}
 
-    defer out.Close()
+	defer out.Close()
 
-    _, err = io.Copy(out, resp.Body)
-    if err != nil {
-        panic(err)
-    }
+	_, err = io.Copy(out, resp.Body)
+	if err != nil {
+		panic(err)
+	}
 }
 
 func GetYaraRules() {
+	//check if rules.yar already exists
+	if _, err := os.Stat(yaraRules); err == nil {
+		return
+	} else {
+		webLocation := config.GetYaraRules()
+		resp, err := http.Get(webLocation)
+		if err != nil {
+			panic(err)
+		}
+		defer resp.Body.Close()
 
+		out, err := os.Create(yaraRules)
+		if err != nil {
+			panic(err)
+		}
+
+		defer out.Close()
+
+		_, err = io.Copy(out, resp.Body)
+		if err != nil {
+			panic(err)
+		}
+
+		zap.S().Info("[+] Downloaded Yara Rules from: " + webLocation)
+	}
 }

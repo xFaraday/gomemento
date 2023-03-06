@@ -22,6 +22,9 @@ type Configuration struct {
 			IP        string `json:"IP"`
 			UserAgent string `json:"UserAgent"`
 		} `json:"SerialScripter"`
+		Yara struct {
+			Rules string `json:"Rules"`
+		} `json:"Yara"`
 	} `json:"Apis"`
 }
 
@@ -67,7 +70,19 @@ func GetSerialScripterIP() string {
 	return configuration.Apis.SerialScripter.IP
 }
 
-func MakeConfig(API string, IPofServ string, UA string) {
+func GetYaraRules() string {
+	file, _ := os.Open(CONFIG_LOC)
+	defer file.Close()
+	decoder := json.NewDecoder(file)
+	configuration := Configuration{}
+	err := decoder.Decode(&configuration)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return configuration.Apis.Yara.Rules
+}
+
+func MakeConfig(API string, IPofServ string, UA string, YaraRules string) {
 	/*config := Configuration{
 		Apis: {
 			Kaspersky: {
@@ -76,12 +91,17 @@ func MakeConfig(API string, IPofServ string, UA string) {
 			SerialScripter: {
 				IP:        IPofServ,
 				UserAgent: UA,
-		},
+			},
+			Yara: {
+				Rules: YaraRules,
+			},
+		}
 	}*/
 	config := &Configuration{}
 	config.Apis.Kaspersky.APIKey = API
 	config.Apis.SerialScripter.IP = IPofServ
 	config.Apis.SerialScripter.UserAgent = UA
+	config.Apis.Yara.Rules = YaraRules
 	file, _ := json.MarshalIndent(config, "", " ")
 	_ = ioutil.WriteFile(CONFIG_LOC, file, 0644)
 }

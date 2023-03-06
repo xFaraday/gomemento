@@ -5,6 +5,8 @@ go 1.18
 require (
 	github.com/charmbracelet/bubbletea v0.22.1
 	github.com/charmbracelet/lipgloss v0.6.0
+	github.com/go-sql-driver/mysql v1.7.0
+	github.com/hillu/go-yara/v4 v4.2.4
 	github.com/klauspost/compress v1.15.11
 	github.com/weaveworks/procspy v0.0.0-20150706124340-cb970aa190c3
 	go.uber.org/zap v1.24.0
@@ -13,7 +15,6 @@ require (
 require (
 	github.com/aymanbagabas/go-osc52 v1.0.3 // indirect
 	github.com/containerd/console v1.0.3 // indirect
-	github.com/go-sql-driver/mysql v1.7.0 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect
 	github.com/mattn/go-isatty v0.0.16 // indirect
 	github.com/mattn/go-localereader v0.0.1 // indirect

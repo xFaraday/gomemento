@@ -9,13 +9,14 @@ import (
 	"strings"
 	"syscall"
 
-	"github.com/xFaraday/gomemento/alertmon"
-	"github.com/xFaraday/gomemento/webmon"
-	"github.com/xFaraday/gomemento/config"
-	"github.com/xFaraday/gomemento/common"
-	"go.uber.org/zap"
-	"os/exec"
 	"io/ioutil"
+	"os/exec"
+
+	"github.com/xFaraday/gomemento/alertmon"
+	"github.com/xFaraday/gomemento/common"
+	"github.com/xFaraday/gomemento/config"
+	"github.com/xFaraday/gomemento/webmon"
+	"go.uber.org/zap"
 )
 
 /*
@@ -25,6 +26,10 @@ for now just scan with yara and upload to kapersky
 to determine if maliscious or now.  Also run through
 the command list.
 */
+
+var (
+	yaraRules = "/opt/memento/rules.yar"
+)
 
 type ProcSnapshot struct {
 	Procs []Proc
@@ -316,9 +321,8 @@ func ProcMon() {
 	}
 }
 
-
 func KillProc(pid int) {
-	
+
 	// dump memory of specified process, send to kaspersky API, kill process
 	// generating dump doesn't work
 	// dumpProcessMemory(pid)
@@ -326,7 +330,7 @@ func KillProc(pid int) {
 	_, _ = exec.Command("bash", "-c", cmd).Output()
 	filename := "file.bin." + strconv.Itoa(pid)
 	fhandle, _ := os.Open(filename)
-	
+
 	kApiKey := config.GetKaperskyKey()
 	// kaspersky api
 	common.UploadFile("https://opentip.kaspersky.com/api/v1/scan/file?filename=", fhandle, kApiKey)
@@ -346,16 +350,16 @@ func KillProc(pid int) {
 		)
 		zlog.Warn("Failed to kill specified process")
 		var inc alertmon.Incident = alertmon.Incident{
-			Name:	"Failed to kill specified process",
-			User:	"",
-			Process: string(processPath),
+			Name:     "Failed to kill specified process",
+			User:     "",
+			Process:  string(processPath),
 			RemoteIP: "",
-			Cmd:	"",
+			Cmd:      "",
 		}
 		IP := webmon.GetIP()
 		hostname := "host-" + strings.Split(IP, ".")[3]
 		var alert alertmon.Alert = alertmon.Alert{
-			Host:	hostname,
+			Host:     hostname,
 			Incident: inc,
 		}
 		webmon.IncidentAlert(alert)
