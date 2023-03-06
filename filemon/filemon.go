@@ -88,7 +88,9 @@ func VerifyFiles() {
 						Host:     hostname,
 						Incident: inc,
 					}
-					webmon.IncidentAlert(alert)
+					if err := webmon.IncidentAlert(alert); err != nil {
+						zap.S().Error(err)
+					}
 
 					OverWriteModifiedFile(oGfile.Name(), tmpcmpfile.Name())
 					os.Remove(tmpcmpfile.Name())

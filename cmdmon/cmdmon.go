@@ -263,7 +263,9 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 					Host:     hostname,
 					Incident: inc,
 				}
-				webmon.IncidentAlert(alert)
+				if err := webmon.IncidentAlert(alert); err != nil {
+					zap.S().Error(err)
+				}
 
 				return SuspiciousCmd{cmd, lowerCaseKnownCmd}
 			}

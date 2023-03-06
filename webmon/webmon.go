@@ -41,7 +41,7 @@ func GetIP() string {
 	return ipaddr.String()
 }
 
-func HeartBeat() {
+func HeartBeat() error {
 	m := Beat{IP: GetIP()}
 	jsonStr, err := json.Marshal(m)
 	if err != nil {
@@ -71,10 +71,10 @@ func HeartBeat() {
 	}
 
 	defer resp.Body.Close()
-
+	return nil
 }
 
-func IncidentAlert(alert alertmon.Alert) {
+func IncidentAlert(alert alertmon.Alert) error {
 
 	jsonStr, err := json.Marshal(alert)
 	if err != nil {
@@ -104,6 +104,7 @@ func IncidentAlert(alert alertmon.Alert) {
 	}
 
 	defer resp.Body.Close()
+	return nil
 }
 
 func GetSigmaRules() {

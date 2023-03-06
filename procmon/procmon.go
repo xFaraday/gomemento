@@ -227,7 +227,9 @@ func ProcMon() {
 				Host:     hostname,
 				Incident: inc,
 			}
-			webmon.IncidentAlert(alert)
+			if err := webmon.IncidentAlert(alert); err != nil {
+				zap.S().Error(err)
+			}
 		}
 
 		if p.CWD == "/tmp" || p.CWD == "/dev" {
@@ -258,7 +260,9 @@ func ProcMon() {
 				Host:     hostname,
 				Incident: inc,
 			}
-			webmon.IncidentAlert(alert)
+			if err := webmon.IncidentAlert(alert); err != nil {
+				zap.S().Error(err)
+			}
 		}
 
 		if p.uid > 0 && p.uid < 1000 {
@@ -288,7 +292,9 @@ func ProcMon() {
 					Host:     hostname,
 					Incident: inc,
 				}
-				webmon.IncidentAlert(alert)
+				if err := webmon.IncidentAlert(alert); err != nil {
+					zap.S().Error(err)
+				}
 			}
 		}
 
@@ -316,7 +322,9 @@ func ProcMon() {
 				Host:     hostname,
 				Incident: inc,
 			}
-			webmon.IncidentAlert(alert)
+			if err := webmon.IncidentAlert(alert); err != nil {
+				zap.S().Error(err)
+			}
 		}
 	}
 }
