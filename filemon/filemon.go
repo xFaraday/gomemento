@@ -81,13 +81,9 @@ func VerifyFiles() {
 				common.Decompress(RevertCompressedFile, tmpcmpfile)
 
 				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
-<<<<<<< HEAD
-				diff, _ := common.GetDiff(m[0], tmpcmpfile.Name())
+				diff, _ := common.GetDiff(splittysplit[0], tmpcmpfile.Name())
 				if diff == "binary, no diff" {
-					zap.S().Warn("File:" + m[0] + " has been modified, but is binary, no diff available")
-=======
-				diff, _ := GetDiff(m[0], tmpcmpfile.Name())
->>>>>>> e190579b1d11a276c02e2dc922ffc448c7b42daf
+					zap.S().Warn("File:" + splittysplit[0] + " has been modified, but is binary, no diff available")
 				} else {
 					zlog := zap.S().With(
 						"file", splittysplit[0],
@@ -175,7 +171,6 @@ func OverWriteModifiedFile(OriginalPath string, FileBackup string) {
 func OverWriteBackup(storename string, file string) {
 	f := common.OpenFile(indexfile)
 	for _, indexstr := range f {
-		var m = make(map[int]string)
 		splittysplit := strings.Split(indexstr, "-:-")
 
 		if file == splittysplit[0] {
