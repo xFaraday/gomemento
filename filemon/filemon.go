@@ -2,11 +2,11 @@ package filemon
 
 import (
 	"bufio"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"math/rand"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -28,21 +28,6 @@ var (
 		- if so, unzip compressed file back to original spot
 		- if not, proceed as normal
 */
-
-func GetDiff(file, storepath string) string {
-	if common.IsHumanReadable(file) {
-		cmdout, err := exec.Command("diff", "--unified", storepath, file).CombinedOutput()
-		if err != nil {
-			switch err.(type) {
-			case *exec.ExitError:
-			default:
-				panic(err)
-			}
-		}
-		return string(cmdout)
-	}
-	return "binary, no diff"
-}
 
 func VerifyFiles() {
 	safestats := common.CheckFile(indexfile)
@@ -97,9 +82,7 @@ func VerifyFiles() {
 				common.Decompress(RevertCompressedFile, tmpcmpfile)
 
 				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
-				diff := GetDiff(splittysplit[0], tmpcmpfile.Name())
-				if diff == "binary, no diff" {
-					zap.S().Warn("File:" + splittysplit[0] + " has been modified, but is binary, no diff available")
+				diff, _ := GetDiff(m[0], tmpcmpfile.Name())
 				} else {
 					zlog := zap.S().With(
 						"file", splittysplit[0],
@@ -299,4 +282,82 @@ func JumpStart() {
 	//	println("Backing up file: " + file)
 	//}
 
+}
+
+
+func GetDiff(file1, file2 string) (string, error) {
+	// Read the contents of both files into memory
+	content1, err := ioutil.ReadFile(file1)
+	if err != nil {
+		return "", err
+	}
+	content2, err := ioutil.ReadFile(file2)
+	if err != nil {
+		return "", err
+	}
+
+	// Split the file contents into lines
+	lines1 := splitLines(string(content1))
+	lines2 := splitLines(string(content2))
+
+	// Perform the diff
+	var output string
+	var start1, start2, length int
+	for i, j := 0, 0; i < len(lines1) || j < len(lines2); {
+		if i < len(lines1) && j < len(lines2) && lines1[i] == lines2[j] {
+			// Lines are the same
+			i++
+			j++
+		} else {
+			// Lines are different
+			start1 = i
+			start2 = j
+			for i < len(lines1) && j < len(lines2) && lines1[i] != lines2[j] {
+				i++
+				j++
+			}
+			length = i - start1
+			if i < len(lines1) || j < len(lines2) {
+				// There is another hunk after this one
+				length = min(length, min(len(lines1)-start1, len(lines2)-start2))
+			}
+			output += printHunk(lines1, lines2, start1, start2, length)
+		}
+	}
+
+	return output, nil
+}
+
+func splitLines(text string) []string {
+	var lines []string
+	start := 0
+	for i, c := range text {
+		if c == '\n' {
+			lines = append(lines, text[start:i])
+			start = i + 1
+		}
+	}
+	if start < len(text) {
+		lines = append(lines, text[start:])
+	}
+	return lines
+}
+
+func printHunk(lines1, lines2 []string, start1, start2, length int) string {
+	var output string
+	output += fmt.Sprintf("@@ -%d,%d +%d,%d @@\n", start1+1, length, start2+1, length)
+	for i := start1; i < start1+length; i++ {
+		output += fmt.Sprintf("-%s\n", lines1[i])
+	}
+	for i := start2; i < start2+length; i++ {
+		output += fmt.Sprintf("+%s\n", lines2[i])
+	}
+	return output
+}
+
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
