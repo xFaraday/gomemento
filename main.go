@@ -222,7 +222,8 @@ func main() {
 			cmdmon.FindDeviousCmd(cmd)
 		}
 	case 70:
-		fmt.Println(servicemon.ListServices())
+		servicemon.ServiceSnap()
+		servicemon.ServiceMonitor(2)
 	default:
 		usage()
 		os.Exit(1)

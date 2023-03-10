@@ -11,10 +11,13 @@ import (
 	"time"
 	//"bufio"
 
-	"github.com/xFaraday/gomemento/alertmon"
-	"github.com/xFaraday/gomemento/webmon"
+	//"github.com/xFaraday/gomemento/alertmon"
+	//"github.com/xFaraday/gomemento/webmon"
 	"github.com/xFaraday/gomemento/common"
-	"go.uber.org/zap"
+	
+	"github.com/r3labs/diff/v3"
+
+	//"go.uber.org/zap"
 )
 
 /*
@@ -28,6 +31,9 @@ import (
 	We need to change the ListServices() function to find the list of services and their state without systemctl.
 	A lot of distros don't have systemctl installed by default or wont have the tool functional in legacy environments.
 		- We can use the /usr/lib/systemd/system directory to find the list of services.
+
+	TODO:
+		1. If there are differences reported within the service file, take those differences & remove/disable any added services, basically restore to the original service snapshot state
 */
 
 type ServiceStats struct {
@@ -182,33 +188,60 @@ func ServiceMonitor(sleepDuration time.Duration) {
 			serviceSnapHashNew := ServiceSnap()
 			//fmt.Println("[+] Checking hashes...")
 			if serviceSnapHashOrig != serviceSnapHashNew {
-				//fmt.Println("[!] Hashes for service files do not match!")
-				//func GetDifference(fileInput1 string, fileInput2 string) string {
-				diff := GetDifference("/tmp/servicesnap.orig", "/tmp/servicesnap.duplicate")
-				zlog := zap.S().With(
-					"REASON:", "Service snapshots do not match! Potential tampering with services!",
-					"Diff output:", diff,
-				)
-				zlog.Warn("Service snapshot mismatch!")
-				user, _ := exec.Command("/usr/bin/whoami").Output()
-				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "Potentially Malicious Service Added",
-					User:     string(user),
-					Process:  "",
-					RemoteIP: "",
-					Cmd:      "",
-				}
-				IP := webmon.GetIP()
-				hostname := "host-" + strings.Split(IP, ".")[3]
+				// Report difference between the two files
+				originalFileData, _ := os.ReadFile("/tmp/servicesnap.orig")
+				unmatchedFileData, _ := os.ReadFile("/tmp/servicesnap.duplicate")
+				// turn the file data into slices since the diff module outputs cleaner results when comparing structs
+				originalFileSlice := strings.Split(string(originalFileData), "\n")
+				unmatchedFileSlice := strings.Split(string(unmatchedFileData), "\n")
 
-				var alert alertmon.Alert = alertmon.Alert{
-					Host:     hostname,
-					Incident: inc,
+				// perform comparison
+				changes, err := diff.Diff(originalFileSlice, unmatchedFileSlice)
+				if err != nil {
+					fmt.Println(err)
 				}
-				webmon.IncidentAlert(alert)
-			} else {
-				fmt.Println("[+] Hashes match. Resuming rest...")
+				// loop through each change that's occurred
+				//changesSlice := []string{}
+				//fmt.Println(changes)
+				if len(changes) != 0 {
+					for _, change := range changes {
+						// format will be:
+							// Change Type
+							// From
+							// To
+						// Notes: If the From section is <nil> then that means that a line was added
+						changeInfo := fmt.Sprintf("Change Type:%v\nFrom:%v\nTo:%v", change.Type, change.From, change.To)
+						fmt.Println("Detected changes: ", changeInfo)
+
+						//changesSlice = append(changesSlice, changeInfo)
+						
+						// report service status change to webserver
+						/*zlog := zap.S().With(
+							"REASON:", "Service snapshots do not match! Potential tampering with services!",
+							"Diff output:", changeInfo,
+						)
+						zlog.Warn("Services have been tampered with!")
+						user, _ := exec.Command("/usr/bin/whoami").Output()
+						var inc alertmon.Incident = alertmon.Incident{
+							Name:     "Potentially Malicious Service Added",
+							User:     string(user),
+							Process:  "",
+							RemoteIP: "",
+							Cmd:      "",
+						}
+						IP := webmon.GetIP()
+						hostname := "host-" + strings.Split(IP, ".")[3]
+
+						var alert alertmon.Alert = alertmon.Alert{
+							Host:     hostname,
+							Incident: inc,
+						}
+						webmon.IncidentAlert(alert)*/
+					}
+				}
 			}
+		} else {
+			fmt.Println("[+] Hashes match. Resuming rest...")
 		}
 	}
 }
@@ -256,17 +289,3 @@ func ServiceSnap() string {
 	}
 }
 
-func GetDifference(fileInput1 string, fileInput2 string) string {
-	// diff cmd is error'ing out here but still works
-	/* diff will output original file content on 1 line, then modified file content on 2nd line
-	// Example:
-		test	enable
-		test	disable
-	Service test was modified and disabled
-	*/
-	diffOut, err := exec.Command("/usr/bin/diff", "--line=%L", fileInput1, fileInput2).Output()
-	if err != nil {
-		fmt.Println(err)
-	}
-	return string(diffOut)
-}
