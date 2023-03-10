@@ -33,32 +33,20 @@ func VerifyFiles() {
 	if safestats.Size != 0 {
 		f := common.OpenFile(indexfile)
 		for _, indexstr := range f {
-			var m = make(map[int]string)
 			splittysplit := strings.Split(indexstr, "-:-")
 
-			//original file path
-			m[0] = splittysplit[0]
-			//file store name
-			m[1] = splittysplit[1]
-			//backup name
-			m[2] = splittysplit[2]
-			//mod date
-			m[3] = splittysplit[3]
-			//hash
-			m[4] = splittysplit[4]
-
-			if _, err := os.Stat(m[0]); err != nil {
+			if _, err := os.Stat(splittysplit[0]); err != nil {
 				if os.IsNotExist(err) {
-					CompressedBackup := dirforbackups + m[2]
-					tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
+					CompressedBackup := dirforbackups + splittysplit[2]
+					tmpcmpfile, _ := os.Create("/tmp/" + splittysplit[1] + ".tmp")
 					RevertCompressedFile, _ := os.Open(CompressedBackup)
 					common.Decompress(RevertCompressedFile, tmpcmpfile)
-					oGfile, _ := os.Create(m[0])
+					oGfile, _ := os.Create(splittysplit[0])
 
-					zap.S().Warn("File:" + m[0] + " has been deleted, restoring from backup")
+					zap.S().Warn("File:" + splittysplit[0] + " has been deleted, restoring from backup")
 
 					var inc alertmon.Incident = alertmon.Incident{
-						Name:     "FILE DELETED: " + m[0],
+						Name:     "FILE DELETED: " + splittysplit[0],
 						User:     "",
 						Process:  "", //maybe fill this later?
 						RemoteIP: "",
@@ -83,29 +71,33 @@ func VerifyFiles() {
 				}
 			}
 
-			fCurrentStats := common.CheckFile(m[0])
-			if fCurrentStats.Hash != m[4] {
-				CompressedBackup := dirforbackups + m[2]
+			fCurrentStats := common.CheckFile(splittysplit[0])
+			if fCurrentStats.Hash != splittysplit[4] {
+				CompressedBackup := dirforbackups + splittysplit[2]
 				//get uncompressed version
-				tmpcmpfile, _ := os.Create("/tmp/" + m[1] + ".tmp")
+				tmpcmpfile, _ := os.Create("/tmp/" + splittysplit[1] + ".tmp")
 				RevertCompressedFile, _ := os.Open(CompressedBackup)
 
 				common.Decompress(RevertCompressedFile, tmpcmpfile)
 
 				//FIGURE OUT IF TXT FILE THEN TRY TO GET DIFF
+<<<<<<< HEAD
 				diff, _ := common.GetDiff(m[0], tmpcmpfile.Name())
 				if diff == "binary, no diff" {
 					zap.S().Warn("File:" + m[0] + " has been modified, but is binary, no diff available")
+=======
+				diff, _ := GetDiff(m[0], tmpcmpfile.Name())
+>>>>>>> e190579b1d11a276c02e2dc922ffc448c7b42daf
 				} else {
 					zlog := zap.S().With(
-						"file", m[0],
+						"file", splittysplit[0],
 						"diff", diff,
 					)
 					zlog.Warn("File has been modified, diff below")
 				}
 
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "FILE MODIFIED: " + m[0],
+					Name:     "FILE MODIFIED: " + splittysplit[0],
 					User:     "",
 					Process:  "", //maybe fill this later?
 					RemoteIP: "",
@@ -122,9 +114,9 @@ func VerifyFiles() {
 				webmon.IncidentAlert(alert)
 
 				//actions once the difference is logged
-				OverWriteModifiedFile(m[0], tmpcmpfile.Name())
+				OverWriteModifiedFile(splittysplit[0], tmpcmpfile.Name())
 				os.Remove(tmpcmpfile.Name())
-				zap.S().Info("File: " + m[0] + " has been restored to original state")
+				zap.S().Info("File: " + splittysplit[0] + " has been restored to original state")
 			}
 		}
 	}
@@ -185,13 +177,10 @@ func OverWriteBackup(storename string, file string) {
 	for _, indexstr := range f {
 		var m = make(map[int]string)
 		splittysplit := strings.Split(indexstr, "-:-")
-		//original file path
-		m[0] = splittysplit[0]
-		//file backup name
-		m[1] = splittysplit[2]
-		if file == m[0] {
-			os.Remove(dirforbackups + m[1])
-			BackFile(m[1], file)
+
+		if file == splittysplit[0] {
+			os.Remove(dirforbackups + splittysplit[2])
+			BackFile(splittysplit[2], file)
 		}
 	}
 }
