@@ -73,7 +73,7 @@ func usage() {
 func VerifyFilesCall() {
 	ticker := time.NewTicker(2 * time.Minute)
 
-	for _ = range ticker.C {
+	for range ticker.C {
 		filemon.VerifyFiles()
 	}
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/xFaraday/gomemento/alertmon"
+	"github.com/xFaraday/gomemento/common"
 	"github.com/xFaraday/gomemento/webmon"
 	"go.uber.org/zap"
 )
@@ -66,7 +67,7 @@ func ServiceMonitor(sleepDuration time.Duration) {
 			if serviceSnapHashOrig != serviceSnapHashNew {
 				//fmt.Println("[!] Hashes for service files do not match!")
 				//func GetDifference(fileInput1 string, fileInput2 string) string {
-				diff := GetDifference("/tmp/servicesnap.orig", "/tmp/servicesnap.duplicate")
+				diff, _ := common.GetDiff("/tmp/servicesnap.orig", "/tmp/servicesnap.duplicate")
 				zlog := zap.S().With(
 					"REASON:", "Service snapshots do not match! Potential tampering with services!",
 					"Diff output:", diff,
@@ -136,19 +137,4 @@ func ServiceSnap() string {
 		serviceDataHash := CreateServiceFile("/tmp/servicesnap.duplicate")
 		return serviceDataHash
 	}
-}
-
-func GetDifference(fileInput1 string, fileInput2 string) string {
-	// diff cmd is error'ing out here but still works
-	/* diff will output original file content on 1 line, then modified file content on 2nd line
-	// Example:
-		test	enable
-		test	disable
-	Service test was modified and disabled
-	*/
-	diffOut, err := exec.Command("/usr/bin/diff", "--line=%L", fileInput1, fileInput2).Output()
-	if err != nil {
-		fmt.Println(err)
-	}
-	return string(diffOut)
 }
