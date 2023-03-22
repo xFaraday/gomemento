@@ -200,14 +200,6 @@ func main() {
 		permmon.UserPermIntegrityCheck()
 	case 13:
 		servicemon.ServiceMonitor(30)
-	case 14:
-		yaracompiler := common.YaraCompile("/home/xfaraday/coding/gomemento/all-yara.yar")
-		if rules, err := yaracompiler.GetRules(); err != nil {
-			fmt.Println(err)
-		} else {
-			files := common.PerformFileScan(rules, "/home/xfaraday/coding/gomemento/notes.txt")
-			fmt.Println(files.Rulename)
-		}
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:
