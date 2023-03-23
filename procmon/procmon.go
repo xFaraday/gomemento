@@ -213,11 +213,11 @@ func ProcMon() {
 			zlog.Warn("Suspicious process found")
 			//gen alert
 			var inc alertmon.Incident = alertmon.Incident{
-				Name:     "Suspicious Process Found",
-				User:     "",
-				Process:  p.Pid, //maybe fill this later?
-				RemoteIP: "",
-				Cmd:      p.cmd,
+				Name:        "Suspicious Process Found",
+				CurrentTime: "",
+				User:        "", //maybe fill this later?
+				Severity:    "Low",
+				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a deleted binary.  This is a tell of fileless malware.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
@@ -246,11 +246,11 @@ func ProcMon() {
 			)
 			zlog.Warn("Suspicious process found")
 			var inc alertmon.Incident = alertmon.Incident{
-				Name:     "Suspicious Process Found",
-				User:     "",
-				Process:  p.Pid, //maybe fill this later?
-				RemoteIP: "",
-				Cmd:      p.cmd,
+				Name:        "Suspicious Process Found",
+				CurrentTime: "",
+				User:        "", //maybe fill this later?
+				Severity:    "Low",
+				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a suspicious directory.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
@@ -278,11 +278,11 @@ func ProcMon() {
 				)
 				zlog.Warn("Suspicious process found")
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "Suspicious Process Found",
-					User:     "",
-					Process:  p.Pid, //maybe fill this later?
-					RemoteIP: "",
-					Cmd:      p.cmd,
+					Name:        "Suspicious Process Found",
+					CurrentTime: "",
+					User:        "", //maybe fill this later?
+					Severity:    "Low",
+					Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a system user.  Please investigate further.",
 				}
 
 				IP := webmon.GetIP()
@@ -308,11 +308,11 @@ func ProcMon() {
 			)
 			zlog.Warn("Suspicious process found")
 			var inc alertmon.Incident = alertmon.Incident{
-				Name:     "Suspicious Process Found",
-				User:     "",
-				Process:  p.Pid, //maybe fill this later?
-				RemoteIP: "",
-				Cmd:      p.cmd,
+				Name:        "Suspicious Process Found",
+				CurrentTime: "",
+				User:        "", //maybe fill this later?
+				Severity:    "Low",
+				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running with a suspicious name.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
@@ -358,11 +358,11 @@ func KillProc(pid int) {
 		)
 		zlog.Warn("Failed to kill specified process")
 		var inc alertmon.Incident = alertmon.Incident{
-			Name:     "Failed to kill specified process",
-			User:     "",
-			Process:  string(processPath),
-			RemoteIP: "",
-			Cmd:      "",
+			Name:        "Failed to kill specified process",
+			CurrentTime: "",
+			User:        "",
+			Severity:    "Medium",
+			Payload:     "",
 		}
 		IP := webmon.GetIP()
 		hostname := "host-" + strings.Split(IP, ".")[3]

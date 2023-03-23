@@ -95,11 +95,11 @@ func WindowsFindDeviousCmdParams(cmd string) SuspiciousCmd {
 				zlog.Warn("Suspicious Command Ran")
 				//gen alert
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "Suspicious Command Ran",
-					User:     "",
-					Process:  "",
-					RemoteIP: "",
-					Cmd:      lowerCaseCmd,
+					Name:        "Suspicious Command Ran",
+					CurrentTime: "",
+					User:        "",
+					Severity:    "",
+					Payload:     "",
 				}
 
 				IP := webmon.GetIP()
@@ -249,11 +249,11 @@ func FindDeviousCmd(cmd string) SuspiciousCmd {
 				zlog.Warn("Suspicious Command Ran")
 				//gen alert
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "Suspicious Command Ran",
-					User:     "",
-					Process:  "",
-					RemoteIP: "",
-					Cmd:      lowerCaseCmd,
+					Name:        "Suspicious Command Ran",
+					CurrentTime: "",
+					User:        "",
+					Severity:    "",
+					Payload:     lowerCaseCmd,
 				}
 
 				IP := webmon.GetIP()

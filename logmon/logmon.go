@@ -1,17 +1,17 @@
 package logmon
 
 import (
-	"os"
-	"time"
-	"os/exec"
-	"strings"
-	"strconv"
-	"fmt"
 	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
 
+	"github.com/xFaraday/gomemento/alertmon"
 	"github.com/xFaraday/gomemento/hookmon"
 	"github.com/xFaraday/gomemento/webmon"
-	"github.com/xFaraday/gomemento/alertmon"
 
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -60,15 +60,14 @@ func getEncoder() zapcore.Encoder {
 	return zapcore.NewConsoleEncoder(encoderConfig)
 }
 
-
-//filepath should be a utmp, wtmp, or btmp file which has info about logins
-	// /var/run/utmp
-	// /var/log/wtmp
-	// /var/log/btmp
+// filepath should be a utmp, wtmp, or btmp file which has info about logins
+// /var/run/utmp
+// /var/log/wtmp
+// /var/log/btmp
 // Resource: https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering/
 func DetectTampering(filepath string) {
 	fmt.Println("[+] Inspecting: " + filepath)
-	fileBytes, _ := exec.Command("bash", "-c", "utmpdump " + filepath).Output()
+	fileBytes, _ := exec.Command("bash", "-c", "utmpdump "+filepath).Output()
 	// loop through each line of the log file, attempt to find the date which indicates tampering
 	for _, line := range strings.Split(string(fileBytes), "\n") {
 		// last log file field contains the date, we only want that
@@ -78,11 +77,11 @@ func DetectTampering(filepath string) {
 			// if log file timestamp field contains suspicious date, may be indication of tampering
 			if strings.Contains(timestampField, "1970-01-01") {
 				// send alert about potential tampering w/log files
-				/* alert should contain: 
-					* log file tampered with 
-					* IP addr of machine
-					* hostname of machine
-				*/
+				/* alert should contain:
+				* log file tampered with
+				* IP addr of machine
+				* hostname of machine
+				 */
 				fmt.Println("[!] Potential tampering has occurred!")
 				// generate log report
 				zlog := zap.S().With(
@@ -94,30 +93,30 @@ func DetectTampering(filepath string) {
 
 				// generate alert
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:	"Log file tampering with the following log file: " + filepath,
-					User:	"",
-					Process:	"",
-					RemoteIP:	"",
-					Cmd:	"",
+					Name:        "Log file tampering with the following log file: " + filepath,
+					CurrentTime: "",
+					User:        "",
+					Severity:    "High",
+					Payload:     "",
 				}
 
 				IP := webmon.GetIP()
 				hostname := "host-" + strings.Split(IP, ".")[3]
 				var alert alertmon.Alert = alertmon.Alert{
-					Host:	hostname,
-					Incident:	inc,
+					Host:     hostname,
+					Incident: inc,
 				}
 				webmon.IncidentAlert(alert)
-				
+
 			}
 		}
 	}
 }
 
 /* determine which log file(s) to use:
-	/var/run/utmp
-	/var/log/wtmp
-	/var/log/btmp
+/var/run/utmp
+/var/log/wtmp
+/var/log/btmp
 */
 // First run FindBadLoginFile(), it'll return a slice w/the locations in which bad logins are logged
 // Then loop through that slice & run DetectTampering() on each log path returned by FindBadLoginFile()
@@ -141,9 +140,9 @@ func FindBadLoginFile() []string {
 }
 
 type FailLogData struct {
-	user	string
-	failct	string
-	latestlogin	string
+	user        string
+	failct      string
+	latestlogin string
 }
 
 func ReportFailedLoginCount(username string) {
@@ -157,7 +156,7 @@ func ReportFailedLoginCount(username string) {
 		for _, line := range failLogOutSplit {
 			if line != "Login       Failures Maximum Latest                   On" && len(line) != 0 {
 				// split on each space so we can parse each log
-				fields := strings.Fields(line)	
+				fields := strings.Fields(line)
 				// check if the amount of failures is over 3
 				failureCtInt, _ := strconv.Atoi(fields[1])
 				if failureCtInt > 3 {
@@ -173,18 +172,18 @@ func ReportFailedLoginCount(username string) {
 
 					// generate alert
 					var inc alertmon.Incident = alertmon.Incident{
-						Name:	"Failed login count for following user exceeds 3: " + fields[0],
-						User:	fields[0],
-						Process:	"",
-						RemoteIP:	"",
-						Cmd:	"",
+						Name:        "Failed login count for following user exceeds 3: " + fields[0],
+						CurrentTime: fields[0],
+						User:        "",
+						Severity:    "",
+						Payload:     "",
 					}
 
 					IP := webmon.GetIP()
 					hostname := "host-" + strings.Split(IP, ".")[3]
 					var alert alertmon.Alert = alertmon.Alert{
-						Host:	hostname,
-						Incident:	inc,
+						Host:     hostname,
+						Incident: inc,
 					}
 					webmon.IncidentAlert(alert)
 				} else {
@@ -193,7 +192,7 @@ func ReportFailedLoginCount(username string) {
 			}
 		}
 	} else {
-		failLogOut, err := exec.Command("bash", "-c", "faillog -u " + username).Output()
+		failLogOut, err := exec.Command("bash", "-c", "faillog -u "+username).Output()
 		if err != nil {
 			fmt.Println(err)
 		}
@@ -216,18 +215,18 @@ func ReportFailedLoginCount(username string) {
 
 					// generate alert
 					var inc alertmon.Incident = alertmon.Incident{
-						Name:	"Failed login count for following user exceeds 3: " + fields[0],
-						User:	fields[0],
-						Process:	"",
-						RemoteIP:	"",
-						Cmd:	"",
+						Name:        "Failed login count for following user exceeds 3: " + fields[0],
+						CurrentTime: fields[0],
+						User:        "",
+						Severity:    "",
+						Payload:     "",
 					}
 
 					IP := webmon.GetIP()
 					hostname := "host-" + strings.Split(IP, ".")[3]
 					var alert alertmon.Alert = alertmon.Alert{
-						Host:	hostname,
-						Incident:	inc,
+						Host:     hostname,
+						Incident: inc,
 					}
 					webmon.IncidentAlert(alert)
 				} else {
@@ -237,8 +236,6 @@ func ReportFailedLoginCount(username string) {
 		}
 	}
 }
-
-
 
 func LogGuardian() {
 	/*

@@ -75,11 +75,11 @@ func ServiceMonitor(sleepDuration time.Duration) {
 				zlog.Warn("Service snapshot mismatch!")
 				user, _ := exec.Command("/usr/bin/whoami").Output()
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "Potentially Malicious Service Added",
-					User:     string(user),
-					Process:  "",
-					RemoteIP: "",
-					Cmd:      "",
+					Name:        "Potentially Malicious Service Added",
+					CurrentTime: "",
+					User:        string(user),
+					Severity:    "",
+					Payload:     "",
 				}
 				IP := webmon.GetIP()
 				hostname := "host-" + strings.Split(IP, ".")[3]

@@ -1,11 +1,11 @@
 package alertmon
 
 type Incident struct {
-	Name     string
-	User     string
-	Process  string
-	RemoteIP string
-	Cmd      string
+	Name        string
+	CurrentTime string
+	User        string
+	Severity    string
+	Payload     string
 }
 
 type Alert struct {

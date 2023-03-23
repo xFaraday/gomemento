@@ -46,11 +46,11 @@ func VerifyFiles() {
 					zap.S().Warn("File:" + splittysplit[0] + " has been deleted, restoring from backup")
 
 					var inc alertmon.Incident = alertmon.Incident{
-						Name:     "FILE DELETED: " + splittysplit[0],
-						User:     "",
-						Process:  "", //maybe fill this later?
-						RemoteIP: "",
-						Cmd:      "",
+						Name:        "FILE DELETED",
+						CurrentTime: "",
+						User:        "", //maybe fill this later?
+						Severity:    "Medium",
+						Payload:     "file: " + splittysplit[0],
 					}
 
 					IP := webmon.GetIP()
@@ -93,11 +93,11 @@ func VerifyFiles() {
 				}
 
 				var inc alertmon.Incident = alertmon.Incident{
-					Name:     "FILE MODIFIED: " + splittysplit[0],
-					User:     "",
-					Process:  "", //maybe fill this later?
-					RemoteIP: "",
-					Cmd:      "",
+					Name:        "FILE MODIFIED" + splittysplit[0],
+					CurrentTime: "",
+					User:        "", //maybe fill this later?
+					Severity:    "Medium",
+					Payload:     "file: " + splittysplit[0] + " has been modified",
 				}
 
 				IP := webmon.GetIP()
@@ -283,4 +283,3 @@ func JumpStart() {
 	//}
 
 }
-
