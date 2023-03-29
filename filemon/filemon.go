@@ -3,7 +3,6 @@ package filemon
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path/filepath"
@@ -18,7 +17,8 @@ import (
 )
 
 var (
-	dirforbackups = "/opt/memento/backups"
+	dirforbackups = "/opt/memento/backups/"
+	homedir       = "/opt/memento"
 	indexfile     = "/opt/memento/index.safe"
 )
 
@@ -199,8 +199,24 @@ func GenRandomName() string {
 	return string(b)
 }
 
+func DirSanityCheck() {
+	//check if the homedir directory exists
+	if _, err := os.Stat(homedir); os.IsNotExist(err) {
+		os.Mkdir(homedir, 0700)
+	}
+	//check if the dirforbackups directory exists
+	if _, err := os.Stat(dirforbackups); os.IsNotExist(err) {
+		os.Mkdir(dirforbackups, 0700)
+	}
+	//check if the indexfile exists
+	if _, err := os.Stat(indexfile); os.IsNotExist(err) {
+		os.Create(indexfile)
+	}
+}
+
 func CreateRestorePoint(file string, overwrite bool) {
 	stats := common.CheckFile(file)
+	DirSanityCheck()
 	if stats.Size != 0 {
 		/*
 			Index file format:
@@ -219,44 +235,44 @@ func CreateRestorePoint(file string, overwrite bool) {
 			// /etc/passwd-:-passwd.txt-:-some date-:-hash
 			backname := GenRandomName() + ".zst"
 			indexstr := file + "-:-" + storename + "-:-" + backname + "-:-" + stats.Time + "-:-" + string(stats.Hash) + "\n"
-			newindextstr := []byte(indexstr)
+			//newindextstr := []byte(indexstr)
 
-			if _, err := os.Stat(indexfile); os.IsNotExist(err) {
-				werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
-				if werr != nil {
-					panic(werr)
+			//if _, err := os.Stat(indexfile); os.IsNotExist(err) {
+			//	werr := ioutil.WriteFile(indexfile, newindextstr, 0644)
+			//	if werr != nil {
+			//		panic(werr)
+			//	}
+			//
+			//	BackFile(backname, file)
+			//} else {
+			checkresult := ExistsInIndex(indexfile, file)
+
+			switch checkresult {
+			case "newback":
+				if overwrite {
+					zap.S().Info("Overwriting backup for file: " + file)
+					//println("Overwriting previous backup of :" + file)
+					OverWriteBackup(storename, file)
+				} else {
+					zap.S().Error("Skipping backup for file, overwrite set to n: " + file)
+					println("overwrite is set to n, exiting")
+					os.Exit(0)
 				}
+			case "new":
+				appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
+				if err != nil {
+					panic(err)
+				}
+				appendfile.WriteString(indexstr)
+				defer appendfile.Close()
+
+				zap.S().Info("File: " + file + " has been backed up")
+				//println("BACKING UP FILE: " + file)
 
 				BackFile(backname, file)
-			} else {
-				checkresult := ExistsInIndex(indexfile, file)
-
-				switch checkresult {
-				case "newback":
-					if overwrite {
-						zap.S().Info("Overwriting backup for file: " + file)
-						//println("Overwriting previous backup of :" + file)
-						OverWriteBackup(storename, file)
-					} else {
-						zap.S().Error("Skipping backup for file, overwrite set to n: " + file)
-						println("overwrite is set to n, exiting")
-						os.Exit(0)
-					}
-				case "new":
-					appendfile, err := os.OpenFile(indexfile, os.O_APPEND|os.O_WRONLY, 0644)
-					if err != nil {
-						panic(err)
-					}
-					appendfile.WriteString(indexstr)
-					defer appendfile.Close()
-
-					zap.S().Info("File: " + file + " has been backed up")
-					//println("BACKING UP FILE: " + file)
-
-					BackFile(backname, file)
-					//PostToServ(m)
-				}
+				//PostToServ(m)
 			}
+			//}
 		}
 	} else {
 		println("Nothing to backup :(, file is empty")
