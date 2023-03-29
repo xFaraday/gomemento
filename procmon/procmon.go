@@ -198,6 +198,7 @@ func ProcMon() {
 	for _, p := range ProcSnap {
 		patternforDeleted := regexp.MustCompile(`deleted`)
 		patternforSystemUserBin := regexp.MustCompile(`bash|sh|.php$|base64|nc|ncat|shell|^python|telnet|ruby`)
+		patternforBadDirs := regexp.MustCompile(`^/tmp|^/dev`)
 
 		if patternforDeleted.MatchString(p.bin) {
 			//fmt.Println("deleted binary found")
@@ -232,12 +233,8 @@ func ProcMon() {
 			}
 		}
 
-		if p.CWD == "/tmp" || p.CWD == "/dev" {
+		if patternforBadDirs.MatchString(p.CWD) {
 			//proc running from a sus dir
-			fmt.Println("proc running from a sus dir")
-			println("sus dir: " + p.CWD)
-			println("sus pid: " + p.Pid)
-			println("sus bin: " + p.bin)
 			zlog := zap.S().With(
 				"REASON:", "Running from bad directory",
 				"pid", p.Pid,
@@ -267,9 +264,7 @@ func ProcMon() {
 
 		if p.uid > 0 && p.uid < 1000 {
 			//system user running a process
-			fmt.Println("system user running a process")
 			if patternforSystemUserBin.MatchString(p.bin) {
-				fmt.Println("system user running a shell")
 				zlog := zap.S().With(
 					"REASON:", "System user running a shell",
 					"pid", p.Pid,

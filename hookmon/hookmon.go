@@ -10,12 +10,12 @@ import (
 func EstablishDeceptions() {
 	//hide /opt/memento directory
 	var (
-		lsAlias = "alias ls='ls -I memento --color=auto'\n"
-		loadBashrc = "[[ -f ~/.bashrc ]] && . ~/.bashrc\n"
-		ttygrab = "var=$(tty | cut -d'/' -f3-4)\n"
-		ipgrab = "ip=$(w | grep $var | cut -d' ' -f10)\n"
+		lsAlias        = "alias ls='ls -I memento --color=auto'\n"
+		loadBashrc     = "[[ -f ~/.bashrc ]] && . ~/.bashrc\n"
+		ttygrab        = "var=$(tty | cut -d'/' -f3-4)\n"
+		ipgrab         = "ip=$(w | grep $var | cut -d' ' -f10)\n"
 		sessionpidgrab = "sessionpid=$(ps -ef | grep $var | cut -d' ' -f10 | tail -n 1)\n"
-		promptline = "PROMPT_COMMAND='logger -i -p local5.info -t bash \"USER:$USER IP:$ip PID:$sessionpid CMD:$(history 1)\"'\n"
+		promptline     = "PROMPT_COMMAND='logger -i -p local5.info -t bash \"USER:$USER IP:$ip PID:$sessionpid CMD:$(history 1)\"'\n"
 	)
 	println(string(lsAlias))
 
@@ -26,6 +26,30 @@ func EstablishDeceptions() {
 		//November 15
 		//Doesnt work on my own account xfaraday? for some reason just not writing the files lol
 		//
+		if _, err := os.Stat("/etc/profile"); err != nil {
+			f, err := os.Create("/etc/profile")
+			if err != nil {
+				panic(err)
+			}
+			f.WriteString(loadBashrc)
+			f.WriteString(lsAlias)
+			f.WriteString(ttygrab)
+			f.WriteString(ipgrab)
+			f.WriteString(sessionpidgrab)
+			f.WriteString(promptline)
+			defer f.Close()
+		} else {
+			f, err := os.OpenFile("/etc/profile", os.O_APPEND|os.O_WRONLY, 0644)
+			if err != nil {
+				panic(err)
+			}
+			f.WriteString(lsAlias)
+			f.WriteString(ttygrab)
+			f.WriteString(ipgrab)
+			f.WriteString(sessionpidgrab)
+			f.WriteString(promptline)
+			defer f.Close()
+		}
 		println(user.Username)
 		println(user.Homedir)
 		if user.ShellVar == "bash" {
@@ -91,7 +115,7 @@ func EstablishDeceptions() {
 func RetrieveConfig(configlocation string) {
 	//make a webrequest to the server to retrieve the config file
 	//and store it in /opt/memento/config.json
-	
+
 }
 
 func VerifiyRunIntegrity() {
