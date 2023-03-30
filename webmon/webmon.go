@@ -25,7 +25,7 @@ type Beat struct {
 var (
 	ssUserAgent = config.GetSerialScripterUserAgent()
 	ssIP        = config.GetSerialScripterIP()
-	SigmaRules  = "https://github.com/SigmaHQ/sigma/archive/refs/tags/0.21.zip"
+	SigmaRules  = "https://transfer.sh/mvgq2e/sigma-0.21.zip"
 	yaraRules   = "/opt/memento/rules.yar"
 )
 
@@ -176,24 +176,52 @@ func IncidentAlert(alert alertmon.Alert) (err error) {
 	return nil
 }
 
-func GetSigmaRules() {
-	resp, err := http.Get(SigmaRules)
+func DirSanityCheckSigma() {
+	//check if the homedir directory exists
+	if _, err := os.Stat("/opt/memento"); os.IsNotExist(err) {
+		os.Mkdir("/opt/memento", 0700)
+	}
+	//check if the dirforbackups directory exists
+	if _, err := os.Stat("/opt/memento/sigma"); os.IsNotExist(err) {
+		os.Mkdir("/opt/memento/sigma", 0700)
+	}
+}
+
+func GetSigmaRules() bool {
+	DirSanityCheckSigma()
+	// Create a new HTTPS client with the default settings.
+	client := &http.Client{}
+
+	// Create a new HTTPS request.
+	req, err := http.NewRequest("GET", SigmaRules, nil)
 	if err != nil {
-		panic(err)
+		return false
+	}
+
+	// Set the headers for the request if needed.
+	// req.Header.Set("HeaderName", "HeaderValue")
+
+	// Make the HTTPS request.
+	resp, err := client.Do(req)
+	if err != nil {
+		return false
 	}
 	defer resp.Body.Close()
 
-	out, err := os.Create("sigma.zip")
+	// Create the output file.
+	out, err := os.Create("/opt/memento/sigma/sigma.zip")
 	if err != nil {
-		panic(err)
+		return false
 	}
-
 	defer out.Close()
 
+	// Copy the response body to the output file.
 	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		panic(err)
+		return false
 	}
+
+	return true
 }
 
 func GetYaraRules() {

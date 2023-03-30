@@ -45,10 +45,11 @@ func VerifyFiles() {
 
 					zap.S().Warn("File:" + splittysplit[0] + " has been deleted, restoring from backup")
 
+					time := common.GetCurrentTime()
 					var inc alertmon.Incident = alertmon.Incident{
 						Name:        "FILE DELETED",
-						CurrentTime: "",
-						User:        "", //maybe fill this later?
+						CurrentTime: time,
+						User:        "NULL", //maybe fill this later?
 						Severity:    "Medium",
 						Payload:     "file: " + splittysplit[0],
 					}
@@ -91,11 +92,11 @@ func VerifyFiles() {
 					)
 					zlog.Warn("File has been modified, diff below")
 				}
-
+				time := common.GetCurrentTime()
 				var inc alertmon.Incident = alertmon.Incident{
 					Name:        "FILE MODIFIED" + splittysplit[0],
-					CurrentTime: "",
-					User:        "", //maybe fill this later?
+					CurrentTime: time,
+					User:        "NULL", //maybe fill this later?
 					Severity:    "Medium",
 					Payload:     "file: " + splittysplit[0] + " has been modified",
 				}

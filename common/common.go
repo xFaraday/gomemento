@@ -1,6 +1,7 @@
 package common
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"crypto/sha256"
@@ -12,10 +13,13 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"path"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/klauspost/compress/zstd"
+	"github.com/zcalusic/sysinfo"
 )
 
 type finfo struct {
@@ -365,4 +369,108 @@ func min(a, b int) int {
 		return a
 	}
 	return b
+}
+
+func GetCurrentTime() string {
+	t := time.Now()
+	return t.Format("2006-01-02 15:04:05")
+}
+
+func GetDistroVendor() string {
+	var SystemInfo sysinfo.SysInfo
+	SystemInfo.GetSysInfo()
+	return SystemInfo.OS.Vendor
+}
+
+func FindLogAuditD() (string, error) {
+	// Open the auditd.conf file
+	file, err := os.Open("/etc/audit/auditd.conf")
+	if err != nil {
+		return "", fmt.Errorf("failed to open auditd.conf: %v", err)
+	}
+	defer file.Close()
+
+	// Scan the file line by line
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		// Look for the log_file option
+		if strings.HasPrefix(line, "log_file ") {
+			path := strings.TrimSpace(strings.TrimPrefix(line, "log_file = "))
+			return path, nil
+		}
+	}
+
+	// If the log_file option is not found, return an error
+	return "", fmt.Errorf("log_file option not found in auditd.conf")
+}
+
+func FindLogSyslog() string {
+	pathtocheck := []string{"/var/log/syslog", "/var/log/messages"}
+	for _, path := range pathtocheck {
+		if _, err := os.Stat(path); err == nil {
+			return path
+		}
+	}
+	return "not found"
+}
+
+func FindLog() []string {
+	logs := []string{}
+	// Find the auditd log file
+	if auditdLog, err := FindLogAuditD(); err == nil {
+		logs = append(logs, auditdLog)
+	}
+	// Find the syslog file
+	logs = append(logs, FindLogSyslog())
+	return logs
+}
+
+func UnzipFile(filepath string, directorytostore string) {
+	r, err := zip.OpenReader(filepath)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer r.Close()
+
+	// Iterate through the files in the archive.
+	for _, f := range r.File {
+		fmt.Printf("Extracting %s\n", f.Name)
+
+		// If the entry is a directory, create it.
+		if f.FileInfo().IsDir() {
+			err := os.MkdirAll(path.Join(directorytostore, f.Name), os.ModePerm)
+			if err != nil {
+				fmt.Println(err)
+				return
+			}
+			continue
+		}
+
+		// Open the file inside the archive.
+		rc, err := f.Open()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer rc.Close()
+
+		// Create the output file.
+		outPath := path.Join(directorytostore, f.Name)
+		outFile, err := os.Create(outPath)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		defer outFile.Close()
+
+		// Copy the contents of the file to the output file.
+		_, err = io.Copy(outFile, rc)
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+	}
+	fmt.Println("Extraction complete.")
 }

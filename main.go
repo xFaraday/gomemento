@@ -15,6 +15,7 @@ import (
 	"github.com/xFaraday/gomemento/frontend"
 	"github.com/xFaraday/gomemento/hookmon"
 	"github.com/xFaraday/gomemento/logmon"
+	"github.com/xFaraday/gomemento/lognetmon"
 	"github.com/xFaraday/gomemento/netmon"
 	"github.com/xFaraday/gomemento/permmon"
 	"github.com/xFaraday/gomemento/procmon"
@@ -50,7 +51,6 @@ func JumpStart() {
 	go VerifiyRunIntegrityCall()
 	go TrackUserLoginCall()
 	go FilePermCheckCall()
-	go NetworkSurfingCall()
 	wg.Wait()
 }
 
@@ -145,6 +145,7 @@ func main() {
 		IP             string
 		UserAgent      string
 		YaraRules      string
+		sigmaurl       string
 	)
 
 	flag.StringVar(&file, "file", "", "File path for backup or verify")
@@ -155,10 +156,11 @@ func main() {
 	flag.StringVar(&IP, "IP", "", "Specify the IP address of the server")
 	flag.StringVar(&UserAgent, "ua", "", "Specify the user agent for the server")
 	flag.StringVar(&YaraRules, "yara", "", "Specify the URL to download yara rules file")
+	flag.StringVar(&YaraRules, "sigma", "", "specify full URL to download sigma rules zip file")
 	flag.Parse()
 
 	if APIKey != "" || IP != "" || UserAgent != "" || YaraRules != "" {
-		config.MakeConfig(APIKey, IP, UserAgent, YaraRules)
+		config.MakeConfig(APIKey, IP, UserAgent, YaraRules, sigmaurl)
 	}
 
 	if len(os.Args) <= 1 {
@@ -199,7 +201,10 @@ func main() {
 		permmon.FilePermCheck()
 		permmon.UserPermIntegrityCheck()
 	case 13:
-		servicemon.ServiceMonitor(30)
+		servicemon.ServiceSnap()
+		servicemon.ServiceMonitor(2)
+	case 14:
+		lognetmon.ScanLogs()
 	case 1337:
 		frontend.QuickInterface()
 	case 31337:

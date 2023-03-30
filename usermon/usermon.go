@@ -59,11 +59,11 @@ var rsize = unsafe.Sizeof(record{})
 func UserLoginEvent(uobject *UserInfo) {
 	//generating alert for user login
 	var inc alertmon.Incident = alertmon.Incident{
-		Name:        "UserLogin",
+		Name:        "USER LOGIN",
 		CurrentTime: uobject.Last,
 		User:        uobject.Name, //maybe fill this later?
-		Severity:    "Medium",
-		Payload:     "",
+		Severity:    "Low",
+		Payload:     "From IP: " + uobject.Host,
 	}
 
 	IP := webmon.GetIP()

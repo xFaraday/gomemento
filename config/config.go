@@ -25,6 +25,9 @@ type Configuration struct {
 		Yara struct {
 			Rules string `json:"Rules"`
 		} `json:"Yara"`
+		Sigma struct {
+			ZipLocation string `json:"ZipLocation"`
+		} `json:"Sigma"`
 	} `json:"Apis"`
 }
 
@@ -32,6 +35,18 @@ const CONFIG_LOC string = "/opt/memento/config.json"
 
 func RetrieveConfig() {
 
+}
+
+func GetSigmaURL() string {
+	file, _ := os.Open(CONFIG_LOC)
+	defer file.Close()
+	decoder := json.NewDecoder(file)
+	configuration := Configuration{}
+	err := decoder.Decode(&configuration)
+	if err != nil {
+		fmt.Println("error:", err)
+	}
+	return configuration.Apis.Sigma.ZipLocation
 }
 
 func GetKaperskyKey() string {
@@ -82,7 +97,7 @@ func GetYaraRules() string {
 	return configuration.Apis.Yara.Rules
 }
 
-func MakeConfig(API string, IPofServ string, UA string, YaraRules string) {
+func MakeConfig(API string, IPofServ string, UA string, YaraRules string, sigmaurl string) {
 	/*config := Configuration{
 		Apis: {
 			Kaspersky: {
@@ -102,6 +117,7 @@ func MakeConfig(API string, IPofServ string, UA string, YaraRules string) {
 	config.Apis.SerialScripter.IP = IPofServ
 	config.Apis.SerialScripter.UserAgent = UA
 	config.Apis.Yara.Rules = YaraRules
+	config.Apis.Sigma.ZipLocation = sigmaurl
 	file, _ := json.MarshalIndent(config, "", " ")
 	_ = ioutil.WriteFile(CONFIG_LOC, file, 0644)
 }

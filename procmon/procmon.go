@@ -213,12 +213,13 @@ func ProcMon() {
 			)
 			zlog.Warn("Suspicious process found")
 			//gen alert
+			time := common.GetCurrentTime()
 			var inc alertmon.Incident = alertmon.Incident{
 				Name:        "Suspicious Process Found",
-				CurrentTime: "",
+				CurrentTime: time,
 				User:        "", //maybe fill this later?
-				Severity:    "Low",
-				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a deleted binary.  This is a tell of fileless malware.  Please investigate further.",
+				Severity:    "Medium",
+				Payload:     "CMD BIN: " + p.bin + " PID: " + p.Pid + " DESCRIPTION: was found running from a deleted binary.  This is a tell of fileless malware.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
@@ -242,12 +243,13 @@ func ProcMon() {
 				"cwd", p.CWD,
 			)
 			zlog.Warn("Suspicious process found")
+			time := common.GetCurrentTime()
 			var inc alertmon.Incident = alertmon.Incident{
 				Name:        "Suspicious Process Found",
-				CurrentTime: "",
+				CurrentTime: time,
 				User:        "", //maybe fill this later?
-				Severity:    "Low",
-				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a suspicious directory.  Please investigate further.",
+				Severity:    "High",
+				Payload:     "CMD BIN: " + p.bin + " PID: " + p.Pid + " DESCRIPTION: was found running from a suspicious directory.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
@@ -272,12 +274,13 @@ func ProcMon() {
 					"cwd", p.CWD,
 				)
 				zlog.Warn("Suspicious process found")
+				time := common.GetCurrentTime()
 				var inc alertmon.Incident = alertmon.Incident{
 					Name:        "Suspicious Process Found",
-					CurrentTime: "",
+					CurrentTime: time,
 					User:        "", //maybe fill this later?
-					Severity:    "Low",
-					Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running from a system user.  Please investigate further.",
+					Severity:    "High",
+					Payload:     "CMD BIN: " + p.bin + " PID: " + p.Pid + " DESCRIPTION: was found running from a system user.  Please investigate further.",
 				}
 
 				IP := webmon.GetIP()
@@ -302,12 +305,13 @@ func ProcMon() {
 				"cwd", p.CWD,
 			)
 			zlog.Warn("Suspicious process found")
+			time := common.GetCurrentTime()
 			var inc alertmon.Incident = alertmon.Incident{
 				Name:        "Suspicious Process Found",
-				CurrentTime: "",
+				CurrentTime: time,
 				User:        "", //maybe fill this later?
-				Severity:    "Low",
-				Payload:     "Process: " + p.bin + " with PID: " + p.Pid + " was found running with a suspicious name.  Please investigate further.",
+				Severity:    "Medium",
+				Payload:     "CMD BIN: " + p.bin + " PID: " + p.Pid + " DESCRIPTION: was found running with a suspicious name.  Please investigate further.",
 			}
 
 			IP := webmon.GetIP()
