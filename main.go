@@ -44,7 +44,7 @@ func JumpStart() {
 	filemon.RestoreController("/etc/resolv.conf", true)
 
 	var wg sync.WaitGroup
-	wg.Add(7)
+	wg.Add(6)
 	go HeartBeatCall()
 	go VerifyFilesCall()
 	go ProcMonCall()
